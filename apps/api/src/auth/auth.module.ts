@@ -19,6 +19,8 @@ import { RateLimitGuard } from './guards/rate-limit.guard';
     // Global, deny-by-default: every route requires a valid session unless marked @Public().
     { provide: APP_GUARD, useClass: SessionAuthGuard },
   ],
-  exports: [SessionService],
+  // CsrfGuard is exported so other feature modules can reuse it on their own mutating
+  // routes (see OrganizationsModule) instead of re-implementing CSRF enforcement.
+  exports: [SessionService, CsrfGuard],
 })
 export class AuthModule {}
