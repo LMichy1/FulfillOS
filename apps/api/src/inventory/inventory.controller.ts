@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CsrfGuard } from '../auth/guards/csrf.guard';
 import { Roles } from '../organizations/decorators/roles.decorator';
 import { MembershipGuard } from '../organizations/guards/membership.guard';
@@ -26,6 +34,7 @@ export class InventoryController {
    * routine reservation flow — see docs/architecture/inventory.md#tenant-authorization.
    */
   @Post('adjustments')
+  @HttpCode(200)
   @UseGuards(RolesGuard, CsrfGuard)
   @Roles('owner')
   async adjust(

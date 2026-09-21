@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -43,6 +44,7 @@ export class ReservationsController {
   }
 
   @Post(':id/release')
+  @HttpCode(200)
   async release(
     @Param('organizationId') organizationId: string,
     @Param('id', ParseUUIDPipe) id: string,

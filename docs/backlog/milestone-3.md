@@ -183,7 +183,8 @@ POST /api/v1/organizations/:organizationId/reservations/:id/release
 **Tests**: covered jointly with M3-06 (HTTP-level tenancy/role/CSRF tests against the new
 routes).
 
-**Completion status**: not started
+**Completion status**: done (all four routes implemented and wired into AppModule; verified
+via the M3-06 HTTP test suite and a full app-boot smoke test)
 
 ---
 
@@ -218,7 +219,11 @@ endpoints reusing the Milestone 2 security-test harness.
 [docs/architecture/inventory.md](../architecture/inventory.md) for the full list actually
 executed and their results).
 
-**Completion status**: not started
+**Completion status**: done (30 new integration tests covering every listed concurrency/
+rollback scenario, plus 9 new HTTP security tests covering cross-tenant access, role
+enforcement, CSRF, and the required Idempotency-Key header against the new routes; full
+pre-existing suite — 3 unit, 34 prior integration, 32 prior security, 2 e2e — still passes
+unmodified)
 
 ---
 
