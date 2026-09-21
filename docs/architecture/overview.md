@@ -2,11 +2,13 @@
 
 ## Status
 
-This document describes the target architecture for the MVP. As of Milestone 2, the `auth`
-and `organizations` modules below are implemented and tested (see
-[docs/architecture/authentication.md](authentication.md)); `catalog`, `inventory`, `orders`,
-and `audit` remain a target design, not yet built as NestJS modules. See the root README's
-"Known limitations" section for current status.
+This document describes the target architecture for the MVP. The `auth` and `organizations`
+modules (Milestone 2, see [authentication.md](authentication.md)) and the `inventory` module,
+plus a `reservations` module covering the `orders`/`order_items` slice of the diagram below
+(Milestone 3, see [inventory.md](inventory.md)), are implemented and tested. `catalog` (product
+creation/management) and the rest of `orders` (fulfillment beyond reservation) and `audit`
+(a queryable API over the existing append-only log) remain a target design, not yet built. See
+the root README's "Known limitations" section for current status.
 
 ## System context
 
@@ -44,7 +46,7 @@ Each module owns its own controllers, services, and persistence access, and is o
 
 ## Inventory consistency
 
-Inventory correctness (preventing overselling under concurrent orders) is the project's central technical challenge. The concurrency-control strategy — row-level locking, deterministic lock ordering, and database-enforced idempotency — is documented in [ADR-002](../adr/0002-postgres-inventory-consistency.md).
+Inventory correctness (preventing overselling under concurrent orders) is the project's central technical challenge. The concurrency-control strategy — row-level locking, deterministic lock ordering, and database-enforced idempotency — is documented in [ADR-002](../adr/0002-postgres-inventory-consistency.md) and implemented and tested as of Milestone 3 (see [inventory.md](inventory.md)).
 
 ## Multi-tenancy and authorization
 

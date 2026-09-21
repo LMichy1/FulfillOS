@@ -2,11 +2,11 @@
 
 ## Status
 
-Implemented as of Milestone 1: the schema, migrations, seed script, and the PostgreSQL
-integration test suite described below. **Not** implemented: any application code that reads
-or writes these tables (authentication, catalog/inventory services, order processing) — that
-begins in Milestones 2–4. Treat every table here as a foundation other milestones build on,
-not as a feature in itself.
+Schema, migrations, and seed script implemented as of Milestone 1. Application code now reads
+and writes these tables: authentication and organization membership (Milestone 2, see
+[authentication.md](authentication.md)), and the inventory/reservation engine (Milestone 3, see
+[inventory.md](inventory.md)) — order/catalog fulfillment workflows beyond reservation remain
+future work.
 
 ## Domain overview
 
@@ -210,9 +210,9 @@ strategy (row-level locking, deterministic lock ordering) these constraints back
 from the two authoritative counters, so it can never itself drift out of sync.
 
 `inventory_movements` is an append-only ledger for traceability (which change happened, why,
-and what caused it). **No application code writes to it yet** — Milestone 3's reservation and
-release logic is expected to insert one row here in the same transaction that updates
-`inventory.on_hand`/`reserved`.
+and what caused it). As of Milestone 3, stock adjustments, reservations, and releases each
+insert one row here in the same transaction that updates `inventory.on_hand`/`reserved` — see
+[inventory.md](inventory.md) for the application layer.
 
 ## Idempotency design
 
@@ -234,8 +234,9 @@ loser gets a unique-violation instead of racing consistency.
   — you cannot mark something done without recording what "done" produced.
 - `expiresAt` documents an intended cleanup policy; no expiry job exists yet.
 
-None of the request-handling logic that would actually use this table exists yet — this
-milestone only builds the schema it depends on.
+As of Milestone 3, this is exactly how the inventory/reservation write paths use the table —
+see [inventory.md#idempotency](inventory.md#idempotency) for the full request-handling logic
+built on top of this schema.
 
 ## Migration procedures
 

@@ -11,5 +11,9 @@ import { RolesGuard } from './guards/roles.guard';
   imports: [AuthModule],
   controllers: [OrganizationsController],
   providers: [OrganizationsService, MembershipGuard, RolesGuard],
+  // Exported so other feature modules (inventory, reservations) can reuse the same
+  // membership/role enforcement on their own organization-scoped routes instead of
+  // re-implementing tenancy checks.
+  exports: [OrganizationsService, MembershipGuard, RolesGuard],
 })
 export class OrganizationsModule {}
