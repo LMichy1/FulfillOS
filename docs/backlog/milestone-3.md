@@ -38,7 +38,7 @@ guards).
 rejected decrease below `reserved`, overflow rejection, movement row written atomically with
 the stock change.
 
-**Completion status**: done
+**Completion status**: not started
 
 ---
 
@@ -76,7 +76,7 @@ concurrent reservation of the last unit (real concurrent connections), concurren
 listing the same products in opposite order (deadlock-freedom check), final on-hand/reserved
 state asserted directly against the database.
 
-**Completion status**: done
+**Completion status**: not started
 
 ---
 
@@ -108,7 +108,7 @@ canonical request fingerprinting, and database-enforced uniqueness — no check-
 **Tests**: identical retry replay, conflicting-payload rejection, concurrent identical
 requests, concurrent conflicting requests.
 
-**Completion status**: done
+**Completion status**: not started
 
 ---
 
@@ -138,7 +138,7 @@ conditional update so a second concurrent release is a no-op rather than a doubl
 **Tests**: successful release, double release (sequential), concurrent release (real
 concurrent connections), release of a non-existent/foreign-tenant reservation.
 
-**Completion status**: done
+**Completion status**: not started
 
 ---
 
@@ -177,7 +177,7 @@ POST /api/v1/organizations/:organizationId/reservations/:id/release
 **Tests**: covered jointly with M3-06 (HTTP-level tenancy/role/CSRF tests against the new
 routes).
 
-**Completion status**: done
+**Completion status**: not started
 
 ---
 
@@ -212,7 +212,7 @@ endpoints reusing the Milestone 2 security-test harness.
 [docs/architecture/inventory.md](../architecture/inventory.md) for the full list actually
 executed and their results).
 
-**Completion status**: done
+**Completion status**: not started
 
 ---
 
@@ -240,4 +240,4 @@ during implementation, and README updates (setup/testing instructions, API examp
 
 **Tests**: none beyond re-running the full suite as a final gate.
 
-**Completion status**: done
+**Completion status**: not started
