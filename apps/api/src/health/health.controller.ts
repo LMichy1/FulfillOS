@@ -1,15 +1,32 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Inject,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { sql } from 'drizzle-orm';
+import { DRIZZLE } from '../database/database.constants';
+import type { Database } from '../database/database.module';
 
 @Controller('health')
 export class HealthController {
+  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+
   @Get()
   liveness() {
     return { status: 'ok' };
   }
 
   @Get('ready')
-  readiness() {
-    // TODO(Milestone 1): check database connectivity once persistence is wired up.
+  async readiness() {
+    try {
+      await this.db.execute(sql`select 1`);
+    } catch {
+      throw new ServiceUnavailableException({
+        status: 'error',
+        reason: 'database unreachable',
+      });
+    }
     return { status: 'ok' };
   }
 }
