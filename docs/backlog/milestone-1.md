@@ -22,6 +22,7 @@ constraints needed for tenant isolation and duplicate prevention. No authenticat
 no session handling — schema only.
 
 **Acceptance criteria**
+
 - `organizations`, `users`, `memberships` tables defined as typed Drizzle schema.
 - Users have a case-insensitive-unique, normalized email (DB-enforced, not just app convention).
 - Memberships have a `(organization_id, user_id)` uniqueness constraint (no duplicate membership).
@@ -33,10 +34,11 @@ no session handling — schema only.
 **Dependencies**: none.
 
 **Tests**
+
 - Integration: duplicate organization id rejected (PK), duplicate user email (any casing)
   rejected, duplicate membership rejected, invalid role rejected.
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -53,6 +55,7 @@ for future traceability). No reservation logic — this milestone only prepares 
 Milestone 3's transactional reservation logic will run against.
 
 **Acceptance criteria**
+
 - SKU uniqueness scoped per organization, case-insensitive and trimmed, DB-enforced.
 - One inventory row per product (`UNIQUE(product_id)`), composite foreign key ties
   `inventory.(product_id, organization_id)` to `products.(id, organization_id)` so an
@@ -64,11 +67,12 @@ Milestone 3's transactional reservation logic will run against.
 **Dependencies**: M1-01 (organizations table).
 
 **Tests**
+
 - Integration: duplicate SKU within an org rejected; identical SKU across two different
   orgs allowed; negative on-hand/reserved rejected; reserved > on_hand rejected; inventory
   row referencing a product from a different organization rejected.
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -84,6 +88,7 @@ Drizzle schema for `orders`, `order_items`, `idempotency_keys`, `audit_log`. No 
 business logic, no actual idempotency-key checking code, no audit-writing code — schema only.
 
 **Acceptance criteria**
+
 - `order_items` cannot reference a product from a different organization than its parent
   order (composite foreign keys on both `orders` and `products`).
 - Monetary values stored as integer minor units (cents), never floating point.
@@ -99,11 +104,12 @@ business logic, no actual idempotency-key checking code, no audit-writing code �
 **Dependencies**: M1-01, M1-02.
 
 **Tests**
+
 - Integration: order item referencing another org's product rejected; duplicate
   idempotency key (same org + operation + key) rejected; invalid foreign keys rejected;
   audit record foreign keys enforced as documented (actor optional, organization required).
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -118,6 +124,7 @@ drizzle-kit migration generation/apply scripts, and an idempotent seed script re
 non-production environments.
 
 **Acceptance criteria**
+
 - `pnpm --filter @fulfillos/api db:generate` produces reviewable SQL migration files
   committed to the repo.
 - `pnpm --filter @fulfillos/api db:migrate` applies them to whichever database
@@ -132,7 +139,7 @@ non-production environments.
 **Tests**: seed script run twice against a disposable database, verified row counts stay
 constant on the second run.
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -147,6 +154,7 @@ An integration test harness (separate Jest project from unit tests) that runs mi
 against an isolated test database and exercises the constraints defined in M1-01–M1-03.
 
 **Acceptance criteria**
+
 - Integration tests connect only to a database whose name/URL is explicitly the test
   database (`DATABASE_URL_TEST`), never the dev database, with a guard that refuses to run
   if that isn't the case.
@@ -156,6 +164,6 @@ against an isolated test database and exercises the constraints defined in M1-01
 
 **Dependencies**: M1-01, M1-02, M1-03, M1-04.
 
-**Tests**: this item *is* the tests — see acceptance criteria.
+**Tests**: this item _is_ the tests — see acceptance criteria.
 
-**Completion status**: not started
+**Completion status**: done
