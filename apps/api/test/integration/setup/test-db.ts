@@ -42,6 +42,7 @@ export async function truncateAll(database: TestDatabase): Promise<void> {
       inventory_movements,
       inventory,
       products,
+      sessions,
       memberships,
       users,
       organizations
