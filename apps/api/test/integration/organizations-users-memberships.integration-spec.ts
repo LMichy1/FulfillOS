@@ -14,8 +14,8 @@ const UNIQUE_VIOLATION = '23505';
 describe('organizations, users, memberships (integration)', () => {
   let db: TestDatabase;
 
-  beforeAll(() => {
-    db = getTestDb();
+  beforeAll(async () => {
+    db = await getTestDb();
   });
 
   beforeEach(async () => {

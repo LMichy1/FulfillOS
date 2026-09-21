@@ -27,7 +27,7 @@ describe('CSRF (security)', () => {
 
   beforeAll(async () => {
     app = await createSecurityTestApp();
-    db = getTestDb();
+    db = await getTestDb();
   });
 
   beforeEach(async () => {

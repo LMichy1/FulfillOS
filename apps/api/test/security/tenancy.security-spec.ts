@@ -17,7 +17,7 @@ describe('tenant isolation (security)', () => {
 
   beforeAll(async () => {
     app = await createSecurityTestApp();
-    db = getTestDb();
+    db = await getTestDb();
   });
 
   beforeEach(async () => {

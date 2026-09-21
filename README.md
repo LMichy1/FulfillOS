@@ -68,7 +68,9 @@ pnpm install
 # 2. Copy environment variables
 cp .env.example .env
 
-# 3. Start Postgres (with a separate integration-test database) and Redis
+# 3. Start Postgres (with a separate integration-test database, owned by its own distinct
+#    non-superuser role with no access to the development database — see
+#    docker/postgres-init/01-create-test-db.sh) and Redis
 docker compose up -d
 
 # 4. Apply database migrations
@@ -114,7 +116,9 @@ pnpm typecheck    # type check, all workspaces
 pnpm format:check # formatting check
 
 # PostgreSQL integration tests (schema constraints, tenant isolation — requires
-# DATABASE_URL_TEST to point at a real, disposable database whose name contains "test")
+# DATABASE_URL_TEST to point at a real, disposable database whose name contains "test",
+# ideally under its own distinct role as provisioned by docker compose; the test harness
+# re-verifies the live connection's database identity before every destructive operation)
 pnpm --filter @fulfillos/api test:integration
 
 # HTTP-level security tests: credentials, sessions, CSRF, tenancy, rate limiting

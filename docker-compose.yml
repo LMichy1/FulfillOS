@@ -7,6 +7,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fulfillos}
       POSTGRES_DB: ${POSTGRES_DB:-fulfillos}
       POSTGRES_TEST_DB: ${POSTGRES_TEST_DB:-fulfillos_test}
+      POSTGRES_TEST_USER: ${POSTGRES_TEST_USER:-fulfillos_test}
+      POSTGRES_TEST_PASSWORD: ${POSTGRES_TEST_PASSWORD:-fulfillos_test}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
