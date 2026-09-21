@@ -251,4 +251,10 @@ during implementation, and README updates (setup/testing instructions, API examp
 
 **Tests**: none beyond re-running the full suite as a final gate.
 
+**Completion status**: done (docs/architecture/inventory.md written; ADR-002 addendum added;
+README status/tests/API-docs/known-limitations sections updated; database.md and
+overview.md's stale "not yet implemented" claims corrected; final gates — format, lint,
+typecheck, unit, integration, security, e2e, both production builds — all run for real and
+passing)
+
 **Completion status**: not started

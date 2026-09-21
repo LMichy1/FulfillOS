@@ -4,26 +4,27 @@ A multi-tenant inventory and order management platform. Organizations manage the
 
 ## Status
 
-**Milestones 0–2 complete** (repository foundation; domain and database engineering;
-authentication, sessions, and multi-tenant authorization). This README describes what is
-actually implemented today, not the full target feature set. See
-[Known limitations](#known-limitations) below and the milestone plan in the project brief for
-what's next.
+**Milestones 0–3 complete** (repository foundation; domain and database engineering;
+authentication, sessions, and multi-tenant authorization; the transactional inventory and
+reservation engine). This README describes what is actually implemented today, not the full
+target feature set. See [Known limitations](#known-limitations) below and the milestone plan
+in the project brief for what's next.
 
 Implemented so far:
 
 - pnpm workspace with `apps/api` (NestJS) and `apps/web` (Next.js)
 - API health endpoints (`GET /health`, `GET /health/ready` — the latter checks database connectivity)
-- Docker Compose services for local PostgreSQL and Redis, including a separate database for integration tests
+- Docker Compose services for local PostgreSQL and Redis, including a separate database — and, as of Milestone 3, a distinct, non-superuser role with no access to the development database — for integration tests
 - Full database schema (organizations, users, memberships, products, inventory, inventory movements, orders, order items, idempotency keys, audit log, sessions) with tenant-isolation constraints, migrations, and an idempotent seed script — see [docs/architecture/database.md](docs/architecture/database.md)
 - Database-backed session authentication (Argon2id password hashing, session-bound CSRF tokens, idle/absolute session expiration, Redis-backed rate limiting on auth endpoints), and organization membership/role authorization — see [docs/architecture/authentication.md](docs/architecture/authentication.md)
+- A concurrency-safe inventory and reservation engine (stock adjustments, atomic multi-product reservations with row-level locking in deterministic order, transactional request idempotency, and reservation release/cancellation) exposed as a tenant-scoped, role-enforced HTTP API — see [docs/architecture/inventory.md](docs/architecture/inventory.md)
 - A real Next.js authentication vertical slice (registration, login, an authenticated dashboard with an organization switcher and an owner-only rename form, logout) calling the real API — no mocked auth
-- PostgreSQL integration tests (schema constraints/tenant isolation) and a separate HTTP-level security test suite (credentials, sessions, CSRF, tenancy, rate limiting) against a real database and real Redis, plus a Playwright browser test of the auth flow
+- PostgreSQL integration tests (schema constraints/tenant isolation, and — as of Milestone 3 — concurrency/idempotency/rollback tests against real concurrent connections) and a separate HTTP-level security test suite (credentials, sessions, CSRF, tenancy, rate limiting, and the new inventory/reservation endpoints) against a real database and real Redis, plus a Playwright browser test of the auth flow
 - Shared TypeScript/lint/format config, CI pipeline (install, format check, lint, typecheck, unit tests, PostgreSQL integration tests, security tests, build)
 
-Not yet implemented: product/order HTTP endpoints, inventory reservation logic, organization
-invitations, account recovery. See the [architecture overview](docs/architecture/overview.md)
-for the target design.
+Not yet implemented: a product-creation/catalog HTTP API, order fulfillment beyond reservation
+(no `pending → fulfilled` transition), organization invitations, account recovery. See the
+[architecture overview](docs/architecture/overview.md) for the target design.
 
 ## Technology stack
 
@@ -46,7 +47,7 @@ for the target design.
 
 ## Architecture
 
-See [docs/architecture/overview.md](docs/architecture/overview.md) for the system diagram and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, [docs/architecture/authentication.md](docs/architecture/authentication.md) for the auth/session/CSRF/authorization design and threat model, and [docs/adr/](docs/adr/) for the architecture decision records:
+See [docs/architecture/overview.md](docs/architecture/overview.md) for the system diagram and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, [docs/architecture/authentication.md](docs/architecture/authentication.md) for the auth/session/CSRF/authorization design and threat model, [docs/architecture/inventory.md](docs/architecture/inventory.md) for the inventory/reservation engine (transaction boundaries, lock order, idempotency, reservation lifecycle), and [docs/adr/](docs/adr/) for the architecture decision records:
 
 - [ADR-001: Modular Monolith Architecture](docs/adr/0001-modular-monolith.md)
 - [ADR-002: PostgreSQL Inventory Consistency](docs/adr/0002-postgres-inventory-consistency.md)
@@ -115,13 +116,17 @@ pnpm lint         # lint, all workspaces
 pnpm typecheck    # type check, all workspaces
 pnpm format:check # formatting check
 
-# PostgreSQL integration tests (schema constraints, tenant isolation — requires
-# DATABASE_URL_TEST to point at a real, disposable database whose name contains "test",
-# ideally under its own distinct role as provisioned by docker compose; the test harness
-# re-verifies the live connection's database identity before every destructive operation)
+# PostgreSQL integration tests (schema constraints, tenant isolation, and the inventory/
+# reservation engine's concurrency, idempotency, and rollback guarantees against real,
+# concurrently-connected Postgres — requires DATABASE_URL_TEST to point at a real, disposable
+# database whose name contains "test", ideally under its own distinct role as provisioned by
+# docker compose; the test harness re-verifies the live connection's database identity before
+# every destructive operation)
 pnpm --filter @fulfillos/api test:integration
 
-# HTTP-level security tests: credentials, sessions, CSRF, tenancy, rate limiting
+# HTTP-level security tests: credentials, sessions, CSRF, tenancy, rate limiting, and the
+# inventory/reservation endpoints (cross-tenant access, role enforcement, CSRF, the required
+# Idempotency-Key header)
 # (requires DATABASE_URL_TEST and REDIS_URL_TEST — see .env.example)
 pnpm --filter @fulfillos/api test:security
 
@@ -132,13 +137,16 @@ pnpm --filter @fulfillos/web test:e2e
 
 ## API documentation
 
-Not yet available — OpenAPI/Swagger wiring is planned once more of the API surface exists.
-See [docs/architecture/authentication.md](docs/architecture/authentication.md#api-endpoints)
-for the current endpoint list.
+Not yet available as generated OpenAPI/Swagger — that wiring is still planned. See
+[docs/architecture/authentication.md](docs/architecture/authentication.md#api-endpoints) for
+the auth/organizations endpoints and
+[docs/architecture/inventory.md](docs/architecture/inventory.md#api) for the inventory/
+reservation endpoints, including example requests.
 
 ## Known limitations
 
-- Authentication and organization-membership/role authorization are implemented and tested for the endpoints listed in [docs/architecture/authentication.md](docs/architecture/authentication.md#api-endpoints); no product/order HTTP endpoints or inventory reservation logic exist yet to authorize.
+- Authentication and organization-membership/role authorization are implemented and tested for the endpoints listed in [docs/architecture/authentication.md](docs/architecture/authentication.md#api-endpoints). The inventory/reservation engine (below) reuses this same authorization mechanism; no product-creation/catalog HTTP endpoints exist yet.
+- No order fulfillment workflow — reservations can be created and released, but there is no `pending → fulfilled` transition. See [Known limitations in inventory.md](docs/architecture/inventory.md#known-limitations) for the full list.
 - No organization invitation flow, account recovery, or email verification — see [Known limitations in authentication.md](docs/architecture/authentication.md#known-limitations) for the full list and reasoning.
 - No Content-Security-Policy or systematic output-encoding audit on the frontend.
 - `audit_log`'s append-only nature is an application convention, not yet a database-enforced guarantee (no restricted database role exists yet).

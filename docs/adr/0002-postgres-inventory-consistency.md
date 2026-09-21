@@ -27,3 +27,26 @@ Inventory reservation is the core correctness challenge of FulfillOS: concurrent
 - Correctness under concurrency is provable with integration tests against a real Postgres instance (two concurrent orders competing for the last unit, etc.).
 - Row-level locking can serialize writes to a hot inventory row under heavy concurrent load on the same product; this is an accepted trade-off for correctness at the MVP's expected scale.
 - Deterministic lock ordering adds a small amount of complexity to multi-item order processing but is necessary to avoid deadlocks.
+
+## Addendum (Milestone 3, implementation)
+
+This decision was implemented as designed, with two clarifications the original text left
+implicit. Recorded here rather than editing the Decision above, per this project's policy of
+not silently rewriting historical decisions.
+
+- **Isolation level**: transactions run at PostgreSQL's default READ COMMITTED, not
+  SERIALIZABLE. The row lock, not the isolation level, is what provides the correctness
+  guarantee here (every transaction that touches an `inventory` row locks it with
+  `FOR UPDATE` before reading or writing it) — see
+  [docs/architecture/inventory.md#isolation-level](../architecture/inventory.md#isolation-level)
+  for the full reasoning.
+- **Idempotency key uniqueness**: the actual schema (Milestone 1) scopes the unique constraint
+  as `(organization_id, operation, idempotency_key)` — operation-scoped in addition to
+  tenant-scoped — rather than the `(organization_id, idempotency_key)` stated above. This is a
+  refinement, not a contradiction: it lets the same key value be reused (safely, with distinct
+  rows) across different operations without an artificial namespacing convention in
+  application code.
+
+No other aspect of the original decision changed: reservation and release still use row-level
+locks in ascending `product_id` order inside one transaction each, and PostgreSQL remains the
+only store for `on_hand`/`reserved`.
