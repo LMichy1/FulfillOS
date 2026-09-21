@@ -241,4 +241,4 @@ updates (status, setup, testing, API examples).
 
 **Tests**: none beyond re-running the full suite as a final gate.
 
-**Completion status**: not started
+**Completion status**: done (docs/architecture/order-lifecycle.md written; inventory.md, database.md, overview.md, and ADR-002 updated additively; README status/setup/testing/API-docs/known-limitations sections updated; final gates — format, lint, typecheck, unit, integration, security, e2e, Playwright, both production builds — all run for real and passing)

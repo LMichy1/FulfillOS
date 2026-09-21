@@ -2,13 +2,14 @@
 
 ## Status
 
-This document describes the target architecture for the MVP. The `auth` and `organizations`
-modules (Milestone 2, see [authentication.md](authentication.md)) and the `inventory` module,
-plus a `reservations` module covering the `orders`/`order_items` slice of the diagram below
-(Milestone 3, see [inventory.md](inventory.md)), are implemented and tested. `catalog` (product
-creation/management) and the rest of `orders` (fulfillment beyond reservation) and `audit`
-(a queryable API over the existing append-only log) remain a target design, not yet built. See
-the root README's "Known limitations" section for current status.
+This document describes the target architecture for the MVP. Implemented and tested: `auth`
+and `organizations` (Milestone 2, see [authentication.md](authentication.md)); `inventory` and
+a `reservations` module covering the `orders`/`order_items` slice of the diagram below
+(Milestone 3, see [inventory.md](inventory.md)); `catalog` (product creation/queries) and an
+`orders` module covering listing, retrieval, fulfillment, and cancellation (Milestone 4, see
+[order-lifecycle.md](order-lifecycle.md)). `audit` (a queryable API over the existing
+append-only log) remains a target design, not yet built as its own module. See the root
+README's "Known limitations" section for current status.
 
 ## System context
 
