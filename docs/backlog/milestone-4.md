@@ -42,7 +42,7 @@ existing SKU normalization/uniqueness policy from Milestone 1.
 same SKU across two organizations, invalid input rejection, cross-tenant/unauthorized creation
 rejection.
 
-**Completion status**: in progress (implemented and covered by real-Postgres integration tests; HTTP-level role/CSRF/cross-tenant coverage rolls up under M4-06)
+**Completion status**: done (integration + HTTP security tests passing, including role/CSRF/cross-tenant/validation coverage in M4-06)
 
 ---
 
@@ -74,7 +74,7 @@ inventory). Keyset (cursor) pagination, not offset-based — see
 **Tests**: pagination across multiple pages, cross-tenant access rejection, product detail
 with and without initialized inventory.
 
-**Completion status**: in progress (implemented and covered by real-Postgres integration tests, including deterministic pagination; HTTP-level coverage rolls up under M4-06)
+**Completion status**: done (integration + HTTP security tests passing, including deterministic pagination verified over real HTTP in M4-06)
 
 ---
 
@@ -103,7 +103,7 @@ mutations are M4-04/M4-05.
 **Tests**: listing, pagination, detail with correct items, cross-tenant isolation,
 unauthorized access rejection.
 
-**Completion status**: in progress (implemented and covered by real-Postgres integration tests; HTTP-level coverage rolls up under M4-06)
+**Completion status**: done (integration + HTTP security tests passing, including cross-tenant order access in M4-06)
 
 ---
 
@@ -148,7 +148,7 @@ isolated test database before being applied anywhere else.
 correct movement and audit records, duplicate fulfillment rejection, rollback on injected
 failure, concurrent fulfillment attempts, concurrent idempotent retries.
 
-**Completion status**: in progress (implemented and covered by real-Postgres integration tests, including concurrency and idempotency; HTTP-level coverage rolls up under M4-06)
+**Completion status**: done (integration + HTTP security tests passing, including the end-to-end workflow test in M4-06)
 
 ---
 
@@ -179,7 +179,7 @@ for why this is deliberate rather than an oversight.
 **Tests**: cancellation via the `/orders` route, repeated cancellation, concurrent
 fulfill-vs-cancel race (real concurrent connections), final inventory/status assertions.
 
-**Completion status**: in progress (implemented and covered by real-Postgres integration tests, including the concurrent fulfill-vs-cancel race; HTTP-level coverage rolls up under M4-06)
+**Completion status**: done (integration + HTTP security tests passing, including the concurrent fulfill-vs-cancel race and the independent-cancellation end-to-end test in M4-06)
 
 ---
 
@@ -212,7 +212,7 @@ order IDs), and a full end-to-end workflow test exercised over real HTTP.
 [order-lifecycle.md](../architecture/order-lifecycle.md) for the full list actually executed
 and their results).
 
-**Completion status**: not started
+**Completion status**: done (91 integration tests, 52 security tests — including a dedicated 2-test end-to-end workflow spec — all pass against real Postgres; full pre-existing suite unmodified; existing Playwright auth test re-run and passing, reported separately below)
 
 ---
 
