@@ -21,8 +21,8 @@ const CHECK_VIOLATION = '23514';
 describe('orders and idempotency (integration)', () => {
   let db: TestDatabase;
 
-  beforeAll(() => {
-    db = getTestDb();
+  beforeAll(async () => {
+    db = await getTestDb();
   });
 
   beforeEach(async () => {

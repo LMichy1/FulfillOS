@@ -41,3 +41,4 @@ export const memberships = pgTable(
 
 export type Membership = typeof memberships.$inferSelect;
 export type NewMembership = typeof memberships.$inferInsert;
+export type MembershipRole = Membership['role'];

@@ -15,8 +15,8 @@ const FOREIGN_KEY_VIOLATION = '23503';
 describe('products and inventory (integration)', () => {
   let db: TestDatabase;
 
-  beforeAll(() => {
-    db = getTestDb();
+  beforeAll(async () => {
+    db = await getTestDb();
   });
 
   beforeEach(async () => {

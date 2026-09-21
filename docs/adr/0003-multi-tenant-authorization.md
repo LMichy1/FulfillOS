@@ -12,7 +12,7 @@ FulfillOS is multi-tenant: multiple organizations share the same database and ap
 
 - Authentication uses server-side sessions, not client-trusted JWTs: on login, the API creates a session record in Postgres and returns an opaque session identifier in a `Secure` (in production), `HttpOnly`, `SameSite=Lax` cookie. This allows immediate session revocation and avoids storing authorization claims in a token the client can hold onto after a permission change.
 - Every organization-scoped request resolves the acting user's organization membership and role from the authenticated session server-side. The organization id embedded in a URL or request body is never trusted on its own — it is always checked against the caller's actual memberships before any read or write.
-- Mutating, cookie-authenticated requests require an explicit CSRF token (double-submit pattern) in addition to the session cookie.
+- Mutating, cookie-authenticated requests require an explicit CSRF token (double-submit pattern) in addition to the session cookie. **Superseded by [ADR-004](0004-csrf-session-bound-synchronizer-token.md):** the actual mechanism implemented in Milestone 2 is a session-bound synchronizer token, not double-submit — see ADR-004 for the reasoning. This bullet is left as originally written rather than edited, per this project's policy against silently rewriting historical decision records.
 - Role-based permissions (e.g. owner, staff) gate which operations a member of an organization may perform within that organization.
 
 ## Alternatives considered

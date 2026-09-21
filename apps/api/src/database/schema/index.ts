@@ -8,3 +8,4 @@ export * from './orders.schema';
 export * from './order-items.schema';
 export * from './idempotency-keys.schema';
 export * from './audit-log.schema';
+export * from './sessions.schema';
