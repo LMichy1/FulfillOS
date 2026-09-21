@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { EnvConfig } from '../config/env.validation';
 import type { User } from '../database/schema';
@@ -32,6 +33,7 @@ import { RateLimitGuard } from './guards/rate-limit.guard';
 import type { AuthenticatedRequest } from './guards/session-auth.guard';
 import { SessionService } from './session.service';
 
+@ApiTags('auth')
 @Controller('auth')
 @UseGuards(RateLimitGuard)
 export class AuthController {

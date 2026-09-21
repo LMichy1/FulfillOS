@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CsrfGuard } from '../auth/guards/csrf.guard';
 import type { User } from '../database/schema';
@@ -19,6 +20,8 @@ import {
 import { RolesGuard } from './guards/roles.guard';
 import { OrganizationsService } from './organizations.service';
 
+@ApiTags('organizations')
+@ApiCookieAuth('fulfillos.sid')
 @Controller('organizations')
 export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}

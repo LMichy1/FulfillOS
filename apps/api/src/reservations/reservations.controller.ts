@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CsrfGuard } from '../auth/guards/csrf.guard';
 import { MembershipGuard } from '../organizations/guards/membership.guard';
@@ -22,6 +23,8 @@ import { ReservationsService } from './reservations.service';
  * establishes active membership, and RolesGuard treats a route with no required roles as
  * allowed for any member — see docs/architecture/inventory.md#tenant-authorization.
  */
+@ApiTags('reservations')
+@ApiCookieAuth('fulfillos.sid')
 @Controller('organizations/:organizationId/reservations')
 @UseGuards(MembershipGuard, CsrfGuard)
 export class ReservationsController {

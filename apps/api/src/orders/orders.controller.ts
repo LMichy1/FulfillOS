@@ -8,6 +8,14 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiCookieAuth,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CsrfGuard } from '../auth/guards/csrf.guard';
 import { MembershipGuard } from '../organizations/guards/membership.guard';
@@ -25,12 +33,19 @@ import { OrdersService } from './orders.service';
  * routine operational work, not a catalog- or pricing-defining action (contrast
  * ProductsController.create and InventoryController.adjust, both `owner`-only).
  */
+@ApiTags('orders')
+@ApiCookieAuth('fulfillos.sid')
 @Controller('organizations/:organizationId/orders')
 @UseGuards(MembershipGuard, CsrfGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List the organization’s orders (paginated)' })
+  @ApiOkResponse({
+    description:
+      'A page of orders, newest first, with an opaque next-page cursor.',
+  })
   async list(
     @Param('organizationId') organizationId: string,
     @Query() query: PaginationQueryDto,
@@ -39,6 +54,11 @@ export class OrdersController {
   }
 
   @Get(':orderId')
+  @ApiOperation({
+    summary: 'Get a single order, including its line items and status',
+  })
+  @ApiParam({ name: 'orderId', format: 'uuid' })
+  @ApiOkResponse({ description: 'The order and its order_items.' })
   async getOne(
     @Param('organizationId') organizationId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,
@@ -49,6 +69,18 @@ export class OrdersController {
 
   @Post(':orderId/fulfill')
   @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Fulfill a pending order: consumes the reservation, decreasing on_hand and reserved',
+  })
+  @ApiParam({ name: 'orderId', format: 'uuid' })
+  @ApiHeader({ name: 'X-CSRF-Token', required: true })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'See docs/architecture/order-lifecycle.md#idempotency.',
+  })
+  @ApiOkResponse({ description: 'The now-fulfilled order.' })
   async fulfill(
     @Param('organizationId') organizationId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,
@@ -71,6 +103,17 @@ export class OrdersController {
    */
   @Post(':orderId/cancel')
   @HttpCode(200)
+  @ApiOperation({
+    summary: 'Cancel a pending order, releasing its reservation',
+  })
+  @ApiParam({ name: 'orderId', format: 'uuid' })
+  @ApiHeader({ name: 'X-CSRF-Token', required: true })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: true,
+    description: 'See docs/architecture/order-lifecycle.md#idempotency.',
+  })
+  @ApiOkResponse({ description: 'The now-cancelled order.' })
   async cancel(
     @Param('organizationId') organizationId: string,
     @Param('orderId', ParseUUIDPipe) orderId: string,

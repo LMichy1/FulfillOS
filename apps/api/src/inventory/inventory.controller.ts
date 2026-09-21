@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CsrfGuard } from '../auth/guards/csrf.guard';
 import { Roles } from '../organizations/decorators/roles.decorator';
 import { MembershipGuard } from '../organizations/guards/membership.guard';
@@ -15,6 +16,8 @@ import { IdempotencyKey } from '../idempotency/idempotency-key.decorator';
 import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
 import { InventoryService } from './inventory.service';
 
+@ApiTags('inventory')
+@ApiCookieAuth('fulfillos.sid')
 @Controller('organizations/:organizationId/inventory')
 @UseGuards(MembershipGuard)
 export class InventoryController {

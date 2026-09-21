@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsInt,
   IsOptional,
@@ -16,26 +17,36 @@ import { PG_INT4_MAX } from '../../common/postgres-int.util';
  * is enforced by the existing `products_org_sku_normalized_key` database constraint.
  */
 export class CreateProductDto {
+  @ApiProperty({ example: 'WIDGET-1', maxLength: 64 })
   @IsString()
   @Length(1, 64)
   sku!: string;
 
+  @ApiProperty({ example: 'Widget', maxLength: 200 })
   @IsString()
   @Length(1, 200)
   name!: string;
 
+  @ApiPropertyOptional({ maxLength: 2000 })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
   description?: string;
 
+  @ApiProperty({ example: 500, minimum: 0 })
   @IsInt()
   @Min(0)
   @Max(PG_INT4_MAX)
   unitPriceCents!: number;
 
-  /** Initial on-hand quantity, established atomically with the product itself. Defaults to 0
-   * (a product can be created before any stock physically arrives). */
+  @ApiPropertyOptional({
+    description:
+      'Initial on-hand quantity, established atomically with the product itself. Defaults ' +
+      'to 0 (a product can be created before any stock physically arrives).',
+    example: 20,
+    minimum: 0,
+    default: 0,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
