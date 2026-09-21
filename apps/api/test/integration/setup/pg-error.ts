@@ -1,13 +1,6 @@
-/**
- * drizzle-orm wraps the underlying pg driver error in a DrizzleQueryError, with the original
- * error (which carries the Postgres SQLSTATE `.code`) attached as `.cause`. This unwraps
- * either shape so tests can assert on the specific constraint violation rather than "any
- * error was thrown".
- */
-export function pgErrorCode(error: unknown): string | undefined {
-  const cause = (error as { cause?: { code?: string } } | undefined)?.cause;
-  return cause?.code ?? (error as { code?: string } | undefined)?.code;
-}
+import { pgErrorCode } from '../../../src/common/pg-error.util';
+
+export { pgErrorCode };
 
 /** Asserts a promise rejects with the given Postgres SQLSTATE code (not just any error). */
 export async function expectPgErrorCode(
