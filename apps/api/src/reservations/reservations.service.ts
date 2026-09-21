@@ -36,17 +36,30 @@ export interface ReservationResult {
   status: Order['status'];
   currency: string;
   items: ReservationItemResult[];
-  createdAt: Date;
+  // ISO 8601, not a Date: this value round-trips through the idempotency_keys.response_body
+  // JSONB column on a replay, which serializes a Date to a string — returning a string
+  // consistently on both the original and replayed path (rather than a Date on one and a
+  // string on the other) is what makes "returns persisted outcomes for identical retries"
+  // (see docs/architecture/order-lifecycle.md#idempotency) actually true, not just
+  // true-after-JSON-serialization.
+  createdAt: string;
 }
 
 export interface ReleaseResult {
   orderId: string;
   status: Order['status'];
-  cancelledAt: Date | null;
+  cancelledAt: string | null;
+}
+
+export interface FulfillResult {
+  orderId: string;
+  status: Order['status'];
+  fulfilledAt: string | null;
 }
 
 const CREATE_OPERATION = 'reservation.create';
 const RELEASE_OPERATION = 'reservation.release';
+const FULFILL_OPERATION = 'order.fulfill';
 
 @Injectable()
 export class ReservationsService {
@@ -240,7 +253,7 @@ export class ReservationsService {
           quantity: item.quantity,
           unitPriceCents: lockedByProductId.get(item.productId)!.unitPriceCents,
         })),
-        createdAt: order.createdAt,
+        createdAt: order.createdAt.toISOString(),
       },
     };
   }
@@ -416,7 +429,198 @@ export class ReservationsService {
       body: {
         orderId: cancelled.id,
         status: cancelled.status,
-        cancelledAt: cancelled.cancelledAt,
+        cancelledAt: cancelled.cancelledAt
+          ? cancelled.cancelledAt.toISOString()
+          : null,
+      },
+    };
+  }
+
+  /**
+   * Fulfills a `pending` reservation: consumes the previously reserved stock permanently,
+   * decrementing both `on_hand` and `reserved` by the order's item quantities (so `available`
+   * is unchanged — the stock was already unavailable to other reservations from the moment it
+   * was reserved). This is the `pending -> fulfilled` transition Milestone 3 explicitly
+   * deferred — see docs/architecture/order-lifecycle.md#fulfillment.
+   *
+   * Structurally identical to `releaseReservation` above (same conditional-update-on-`orders`
+   * "exactly once" mechanism, same ascending-`product_id` lock order over the order's
+   * `order_items`, same idempotency wrapping) — the only difference is the inventory math and
+   * the movement type recorded. This is what guarantees a concurrent fulfill-and-cancel race
+   * for the same order can never both succeed: both transitions compete for the same
+   * conditional `UPDATE ... WHERE status = 'pending'` on the same order row, and Postgres's
+   * row-level locking serializes them.
+   */
+  async fulfillOrder(
+    organizationId: string,
+    userId: string,
+    orderId: string,
+    idempotencyKey: string,
+  ): Promise<FulfillResult> {
+    const idempotencyRequest: IdempotencyRequest = {
+      organizationId,
+      operation: FULFILL_OPERATION,
+      idempotencyKey,
+      requestFingerprint: canonicalFingerprint({ orderId }),
+    };
+
+    try {
+      const outcome = await this.db.transaction(async (tx) => {
+        await claimIdempotencyKey(tx, idempotencyRequest);
+        const result = await this.fulfillStock(
+          tx,
+          organizationId,
+          userId,
+          orderId,
+        );
+        await completeIdempotencyKey(tx, idempotencyRequest, result);
+        return result;
+      });
+      return unwrapOutcome(outcome);
+    } catch (error) {
+      if (error instanceof IdempotencyKeyClaimedError) {
+        const outcome = await resolveIdempotencyConflict<FulfillResult>(
+          this.db,
+          idempotencyRequest,
+        );
+        return unwrapOutcome(outcome);
+      }
+      throw error;
+    }
+  }
+
+  private async fulfillStock(
+    tx: DbTransaction,
+    organizationId: string,
+    userId: string,
+    orderId: string,
+  ): Promise<OperationOutcome<FulfillResult>> {
+    const [fulfilled] = await tx
+      .update(orders)
+      .set({
+        status: 'fulfilled',
+        fulfilledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.organizationId, organizationId),
+          eq(orders.status, 'pending'),
+        ),
+      )
+      .returning();
+
+    if (!fulfilled) {
+      const [existing] = await tx
+        .select({ status: orders.status })
+        .from(orders)
+        .where(
+          and(
+            eq(orders.id, orderId),
+            eq(orders.organizationId, organizationId),
+          ),
+        );
+
+      if (!existing) {
+        return {
+          ok: false,
+          status: 404,
+          body: { message: 'Order not found in this organization.' },
+        };
+      }
+      return {
+        ok: false,
+        status: 409,
+        body: {
+          message: `Order cannot be fulfilled: it is already "${existing.status}".`,
+        },
+      };
+    }
+
+    const items = await tx
+      .select({
+        productId: orderItems.productId,
+        quantity: orderItems.quantity,
+      })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId))
+      .orderBy(asc(orderItems.productId));
+
+    const productIds = items.map((item) => item.productId);
+    const lockedRows = await tx
+      .select({
+        id: inventory.id,
+        productId: inventory.productId,
+        onHand: inventory.onHand,
+        reserved: inventory.reserved,
+      })
+      .from(inventory)
+      .where(
+        and(
+          eq(inventory.organizationId, organizationId),
+          inArray(inventory.productId, productIds),
+        ),
+      )
+      .orderBy(asc(inventory.productId))
+      .for('update', { of: inventory });
+    const lockedByProductId = new Map(
+      lockedRows.map((row) => [row.productId, row]),
+    );
+
+    for (const item of items) {
+      const row = lockedByProductId.get(item.productId);
+      // Invariant, not a normal business rejection: the reservation being fulfilled created
+      // these exact reserved quantities against this exact on_hand, so the inventory row must
+      // still hold at least this much of both. This cannot happen without a prior bug — fail
+      // loudly rather than silently under-fulfilling.
+      if (!row || row.reserved < item.quantity || row.onHand < item.quantity) {
+        throw new Error(
+          `Invariant violated: cannot fulfill ${item.quantity} unit(s) of product ${item.productId} — locked inventory row shows on_hand=${row?.onHand ?? 0}, reserved=${row?.reserved ?? 0}.`,
+        );
+      }
+      await tx
+        .update(inventory)
+        .set({
+          onHand: row.onHand - item.quantity,
+          reserved: row.reserved - item.quantity,
+          updatedAt: new Date(),
+        })
+        .where(eq(inventory.id, row.id));
+    }
+
+    if (items.length > 0) {
+      await tx.insert(inventoryMovements).values(
+        items.map((item) => ({
+          organizationId,
+          productId: item.productId,
+          movementType: 'fulfillment' as const,
+          onHandDelta: -item.quantity,
+          reservedDelta: -item.quantity,
+          reason: 'Order fulfilled',
+          reference: { orderId },
+        })),
+      );
+    }
+
+    await tx.insert(auditLog).values({
+      organizationId,
+      actorUserId: userId,
+      action: 'order.fulfill',
+      resourceType: 'order',
+      resourceId: orderId,
+      metadata: {},
+    });
+
+    return {
+      ok: true,
+      status: 200,
+      body: {
+        orderId: fulfilled.id,
+        status: fulfilled.status,
+        fulfilledAt: fulfilled.fulfilledAt
+          ? fulfilled.fulfilledAt.toISOString()
+          : null,
       },
     };
   }

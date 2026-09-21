@@ -42,7 +42,7 @@ existing SKU normalization/uniqueness policy from Milestone 1.
 same SKU across two organizations, invalid input rejection, cross-tenant/unauthorized creation
 rejection.
 
-**Completion status**: not started
+**Completion status**: in progress (implemented and covered by real-Postgres integration tests; HTTP-level role/CSRF/cross-tenant coverage rolls up under M4-06)
 
 ---
 
@@ -74,7 +74,7 @@ inventory). Keyset (cursor) pagination, not offset-based — see
 **Tests**: pagination across multiple pages, cross-tenant access rejection, product detail
 with and without initialized inventory.
 
-**Completion status**: not started
+**Completion status**: in progress (implemented and covered by real-Postgres integration tests, including deterministic pagination; HTTP-level coverage rolls up under M4-06)
 
 ---
 
@@ -103,7 +103,7 @@ mutations are M4-04/M4-05.
 **Tests**: listing, pagination, detail with correct items, cross-tenant isolation,
 unauthorized access rejection.
 
-**Completion status**: not started
+**Completion status**: in progress (implemented and covered by real-Postgres integration tests; HTTP-level coverage rolls up under M4-06)
 
 ---
 
@@ -148,7 +148,7 @@ isolated test database before being applied anywhere else.
 correct movement and audit records, duplicate fulfillment rejection, rollback on injected
 failure, concurrent fulfillment attempts, concurrent idempotent retries.
 
-**Completion status**: not started
+**Completion status**: in progress (implemented and covered by real-Postgres integration tests, including concurrency and idempotency; HTTP-level coverage rolls up under M4-06)
 
 ---
 
@@ -179,7 +179,7 @@ for why this is deliberate rather than an oversight.
 **Tests**: cancellation via the `/orders` route, repeated cancellation, concurrent
 fulfill-vs-cancel race (real concurrent connections), final inventory/status assertions.
 
-**Completion status**: not started
+**Completion status**: in progress (implemented and covered by real-Postgres integration tests, including the concurrent fulfill-vs-cancel race; HTTP-level coverage rolls up under M4-06)
 
 ---
 
