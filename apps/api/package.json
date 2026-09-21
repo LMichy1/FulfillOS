@@ -20,9 +20,10 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:integration": "jest --config ./test/jest-integration.json --runInBand",
+    "test:integration": "pnpm run db:migrate:test && jest --config ./test/jest-integration.json --runInBand",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "ts-node -r tsconfig-paths/register scripts/migrate.ts",
+    "db:migrate:test": "ts-node -r tsconfig-paths/register scripts/migrate-test.ts",
     "db:seed": "ts-node -r tsconfig-paths/register scripts/seed.ts"
   },
   "dependencies": {

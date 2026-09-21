@@ -33,7 +33,8 @@ const SEED_PRODUCTS = [
     id: '00000000-0000-0000-0000-000000000002',
     sku: 'INSULATED-BOTTLE-1L',
     name: 'Insulated Water Bottle 1L',
-    description: 'Vacuum-insulated stainless steel bottle, keeps drinks cold for 24 hours.',
+    description:
+      'Vacuum-insulated stainless steel bottle, keeps drinks cold for 24 hours.',
     unitPriceCents: 2_499,
     onHand: 60,
   },
@@ -49,7 +50,9 @@ const SEED_PRODUCTS = [
 
 async function main(): Promise<void> {
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('Refusing to run the development seed with NODE_ENV=production.');
+    throw new Error(
+      'Refusing to run the development seed with NODE_ENV=production.',
+    );
   }
 
   const databaseUrl = process.env.DATABASE_URL;
