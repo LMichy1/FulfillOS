@@ -38,7 +38,9 @@ guards).
 rejected decrease below `reserved`, overflow rejection, movement row written atomically with
 the stock change.
 
-**Completion status**: not started
+**Completion status**: done (11 integration tests passing against real Postgres; also
+introduces the shared idempotency helper used by M3-03, exercised here for the adjustments
+path)
 
 ---
 
@@ -76,7 +78,9 @@ concurrent reservation of the last unit (real concurrent connections), concurren
 listing the same products in opposite order (deadlock-freedom check), final on-hand/reserved
 state asserted directly against the database.
 
-**Completion status**: not started
+**Completion status**: done (9 integration tests passing against real, concurrent Postgres
+connections, including the 2-of-1 and 3-of-10 last-unit races, opposite-order deadlock-freedom,
+a concurrent stock-adjustment-vs-reservation race, and a mid-transaction rollback proof)
 
 ---
 
@@ -108,7 +112,8 @@ canonical request fingerprinting, and database-enforced uniqueness — no check-
 **Tests**: identical retry replay, conflicting-payload rejection, concurrent identical
 requests, concurrent conflicting requests.
 
-**Completion status**: not started
+**Completion status**: done (4 integration tests passing against real Postgres, plus 2 more
+covering the same mechanism for inventory adjustments in M3-01's test file)
 
 ---
 
@@ -138,7 +143,8 @@ conditional update so a second concurrent release is a no-op rather than a doubl
 **Tests**: successful release, double release (sequential), concurrent release (real
 concurrent connections), release of a non-existent/foreign-tenant reservation.
 
-**Completion status**: not started
+**Completion status**: done (6 integration tests passing against real Postgres, including the
+concurrent-release race and a release attempt against an already-fulfilled order)
 
 ---
 

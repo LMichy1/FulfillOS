@@ -1,4 +1,9 @@
-import { organizations, users } from '../../../src/database/schema';
+import {
+  organizations,
+  users,
+  products,
+  inventory,
+} from '../../../src/database/schema';
 import type { TestDatabase } from './test-db';
 
 /**
@@ -29,4 +34,33 @@ export async function insertUser(
     })
     .returning();
   return user;
+}
+
+export async function insertProduct(
+  db: TestDatabase,
+  params: {
+    organizationId: string;
+    sku: string;
+    name: string;
+    unitPriceCents: number;
+  },
+) {
+  const [product] = await db.insert(products).values(params).returning();
+  return product;
+}
+
+export async function insertInventoryRow(
+  db: TestDatabase,
+  params: {
+    organizationId: string;
+    productId: string;
+    onHand: number;
+    reserved?: number;
+  },
+) {
+  const [row] = await db
+    .insert(inventory)
+    .values({ ...params, reserved: params.reserved ?? 0 })
+    .returning();
+  return row;
 }
