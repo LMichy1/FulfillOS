@@ -4,18 +4,26 @@ A multi-tenant inventory and order management platform. Organizations manage the
 
 ## Status
 
-**Milestone 1 (domain and database engineering) complete; Milestone 0 (repository foundation) complete.** This README describes what is actually implemented today, not the full target feature set. See [Known limitations](#known-limitations) below and the milestone plan in the project brief for what's next.
+**Milestones 0–2 complete** (repository foundation; domain and database engineering;
+authentication, sessions, and multi-tenant authorization). This README describes what is
+actually implemented today, not the full target feature set. See
+[Known limitations](#known-limitations) below and the milestone plan in the project brief for
+what's next.
 
 Implemented so far:
 
-- pnpm workspace with `apps/api` (NestJS) and `apps/web` (Next.js) scaffolds
-- API health endpoints (`GET /health`, `GET /health/ready` — the latter now actually checks database connectivity)
+- pnpm workspace with `apps/api` (NestJS) and `apps/web` (Next.js)
+- API health endpoints (`GET /health`, `GET /health/ready` — the latter checks database connectivity)
 - Docker Compose services for local PostgreSQL and Redis, including a separate database for integration tests
-- Full database schema (organizations, users, memberships, products, inventory, inventory movements, orders, order items, idempotency keys, audit log) with tenant-isolation constraints, migrations, and an idempotent seed script — see [docs/architecture/database.md](docs/architecture/database.md)
-- A PostgreSQL integration test suite covering constraint and tenant-isolation behavior against a real database
-- Shared TypeScript/lint/format config, CI pipeline (install, format check, lint, typecheck, unit tests, PostgreSQL integration tests, build)
+- Full database schema (organizations, users, memberships, products, inventory, inventory movements, orders, order items, idempotency keys, audit log, sessions) with tenant-isolation constraints, migrations, and an idempotent seed script — see [docs/architecture/database.md](docs/architecture/database.md)
+- Database-backed session authentication (Argon2id password hashing, session-bound CSRF tokens, idle/absolute session expiration, Redis-backed rate limiting on auth endpoints), and organization membership/role authorization — see [docs/architecture/authentication.md](docs/architecture/authentication.md)
+- A real Next.js authentication vertical slice (registration, login, an authenticated dashboard with an organization switcher and an owner-only rename form, logout) calling the real API — no mocked auth
+- PostgreSQL integration tests (schema constraints/tenant isolation) and a separate HTTP-level security test suite (credentials, sessions, CSRF, tenancy, rate limiting) against a real database and real Redis, plus a Playwright browser test of the auth flow
+- Shared TypeScript/lint/format config, CI pipeline (install, format check, lint, typecheck, unit tests, PostgreSQL integration tests, security tests, build)
 
-Not yet implemented: authentication, session/tenancy enforcement at the API layer, product/order HTTP endpoints, inventory reservation logic, and the dashboard. See the [architecture overview](docs/architecture/overview.md) for the target design.
+Not yet implemented: product/order HTTP endpoints, inventory reservation logic, organization
+invitations, account recovery. See the [architecture overview](docs/architecture/overview.md)
+for the target design.
 
 ## Technology stack
 
@@ -38,11 +46,12 @@ Not yet implemented: authentication, session/tenancy enforcement at the API laye
 
 ## Architecture
 
-See [docs/architecture/overview.md](docs/architecture/overview.md) for the system diagram and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, and [docs/adr/](docs/adr/) for the architecture decision records:
+See [docs/architecture/overview.md](docs/architecture/overview.md) for the system diagram and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, [docs/architecture/authentication.md](docs/architecture/authentication.md) for the auth/session/CSRF/authorization design and threat model, and [docs/adr/](docs/adr/) for the architecture decision records:
 
 - [ADR-001: Modular Monolith Architecture](docs/adr/0001-modular-monolith.md)
 - [ADR-002: PostgreSQL Inventory Consistency](docs/adr/0002-postgres-inventory-consistency.md)
 - [ADR-003: Multi-Tenant Authorization](docs/adr/0003-multi-tenant-authorization.md)
+- [ADR-004: CSRF via Session-Bound Synchronizer Token](docs/adr/0004-csrf-session-bound-synchronizer-token.md) (supersedes ADR-003's CSRF detail)
 
 ## Prerequisites
 
@@ -73,6 +82,8 @@ pnpm dev:api
 
 # 7. Run the web app (http://localhost:3000)
 pnpm dev:web
+
+# 8. Visit http://localhost:3000/register to create an account and organization
 ```
 
 ## Environment variables
@@ -102,24 +113,32 @@ pnpm lint         # lint, all workspaces
 pnpm typecheck    # type check, all workspaces
 pnpm format:check # formatting check
 
-# PostgreSQL integration tests (requires DATABASE_URL_TEST to point at a real, disposable
-# database whose name contains "test" — docker-compose's fulfillos_test satisfies this)
+# PostgreSQL integration tests (schema constraints, tenant isolation — requires
+# DATABASE_URL_TEST to point at a real, disposable database whose name contains "test")
 pnpm --filter @fulfillos/api test:integration
-```
 
-Playwright end-to-end tests will be added starting in Milestone 5, once there are frontend screens to exercise; this README will be updated with their commands once they exist.
+# HTTP-level security tests: credentials, sessions, CSRF, tenancy, rate limiting
+# (requires DATABASE_URL_TEST and REDIS_URL_TEST — see .env.example)
+pnpm --filter @fulfillos/api test:security
+
+# Playwright browser test of the auth vertical slice — requires both dev servers already
+# running (docker compose up -d, then pnpm dev:api and pnpm dev:web in separate terminals)
+pnpm --filter @fulfillos/web test:e2e
+```
 
 ## API documentation
 
-Not yet available — OpenAPI/Swagger wiring is planned once the first real endpoints beyond health checks exist.
+Not yet available — OpenAPI/Swagger wiring is planned once more of the API surface exists.
+See [docs/architecture/authentication.md](docs/architecture/authentication.md#api-endpoints)
+for the current endpoint list.
 
 ## Known limitations
 
-- No authentication, authorization, or tenancy enforcement at the API layer yet — do not treat any current endpoint as security-reviewed. The database schema enforces _relational_ tenant integrity (see [docs/architecture/database.md](docs/architecture/database.md#tenant-isolation-strategy)), which is a different guarantee from authorization.
-- No application code reads or writes the database yet beyond the health-check readiness probe — no product/order HTTP endpoints, no inventory reservation logic.
-- No frontend screens beyond the default Next.js scaffold.
+- Authentication and organization-membership/role authorization are implemented and tested for the endpoints listed in [docs/architecture/authentication.md](docs/architecture/authentication.md#api-endpoints); no product/order HTTP endpoints or inventory reservation logic exist yet to authorize.
+- No organization invitation flow, account recovery, or email verification — see [Known limitations in authentication.md](docs/architecture/authentication.md#known-limitations) for the full list and reasoning.
+- No Content-Security-Policy or systematic output-encoding audit on the frontend.
 - `audit_log`'s append-only nature is an application convention, not yet a database-enforced guarantee (no restricted database role exists yet).
-- CI does not yet run E2E tests, because no frontend screens exist yet to exercise.
+- CI does not run the Playwright browser test — it requires both dev servers already running, which CI doesn't orchestrate yet. Run it locally with `pnpm --filter @fulfillos/web test:e2e` (see [Tests](#tests)).
 
 ## Future improvements
 

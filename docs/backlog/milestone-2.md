@@ -30,7 +30,7 @@ expiration, revocation. No HTTP endpoints yet.
 
 **Tests**: integration tests for session creation, expiration, and revocation lookups.
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -59,7 +59,7 @@ an owner membership in a single transaction. No login/session issuance yet (that
 **Tests**: successful registration, duplicate email, transaction-rollback-on-failure,
 bootstrap cannot target an unrelated existing organization.
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -91,7 +91,7 @@ a session-validation guard used by protected routes, and a `GET /auth/me` endpoi
 session rejection, tampered/invalid cookie rejection, session-fixation check (pre-auth session
 id, if any, is not the one that becomes authenticated).
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -121,7 +121,7 @@ detail in ADR-003), a guard enforcing it on mutating routes, and narrowly-scoped
 **Tests**: valid request, missing token, wrong token, forged cross-site request, untrusted
 origin, token invalid after session replacement (login again / logout+login).
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -150,7 +150,7 @@ caller's memberships), `GET /organizations/:id` (protected org context, membersh
 rejected, revoked membership takes effect immediately (no stale authorization in a long-lived
 session).
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -177,7 +177,7 @@ membership), unauthorized/forbidden state, logout. Uses `fetch` against the real
 
 **Tests**: manual verification at minimum; Playwright where practical (see M2-07).
 
-**Completion status**: not started
+**Completion status**: done
 
 ---
 
@@ -202,4 +202,4 @@ milestone brief's test list), `docs/architecture/authentication.md`, README upda
 
 **Tests**: this item _is_ the test suite.
 
-**Completion status**: not started
+**Completion status**: done

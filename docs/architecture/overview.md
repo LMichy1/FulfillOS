@@ -2,11 +2,11 @@
 
 ## Status
 
-This document describes the target architecture for the MVP. As of Milestone 1, the database
-schema described in [docs/architecture/database.md](database.md) is implemented and tested,
-but no application code reads or writes it yet — the module boundaries below (organizations,
-auth, catalog, inventory, orders, audit) remain a target design, not yet built as NestJS
-modules. See the root README's "Known limitations" section for current status.
+This document describes the target architecture for the MVP. As of Milestone 2, the `auth`
+and `organizations` modules below are implemented and tested (see
+[docs/architecture/authentication.md](authentication.md)); `catalog`, `inventory`, `orders`,
+and `audit` remain a target design, not yet built as NestJS modules. See the root README's
+"Known limitations" section for current status.
 
 ## System context
 
@@ -48,7 +48,7 @@ Inventory correctness (preventing overselling under concurrent orders) is the pr
 
 ## Multi-tenancy and authorization
 
-Tenant isolation and the session-based auth strategy are documented in [ADR-003](../adr/0003-multi-tenant-authorization.md). The relational half of tenant isolation (composite foreign keys preventing cross-tenant references at the database level) is implemented and tested — see [docs/architecture/database.md](database.md).
+Tenant isolation and the session-based auth strategy are documented in [ADR-003](../adr/0003-multi-tenant-authorization.md) and [ADR-004](../adr/0004-csrf-session-bound-synchronizer-token.md). Both the relational half (composite foreign keys preventing cross-tenant references at the database level — see [docs/architecture/database.md](database.md)) and the application-layer half (session-bound authentication, membership/role authorization) are implemented and tested — see [docs/architecture/authentication.md](authentication.md).
 
 ## Database
 
