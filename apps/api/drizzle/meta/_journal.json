@@ -15,6 +15,13 @@
       "when": 1790011747741,
       "tag": "0001_add_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790024893691,
+      "tag": "0002_add_fulfillment_movement_type_and_order_fulfilled_at",
+      "breakpoints": true
     }
   ]
 }

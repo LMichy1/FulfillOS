@@ -50,3 +50,16 @@ not silently rewriting historical decisions.
 No other aspect of the original decision changed: reservation and release still use row-level
 locks in ascending `product_id` order inside one transaction each, and PostgreSQL remains the
 only store for `on_hand`/`reserved`.
+
+## Addendum (Milestone 4, fulfillment)
+
+Order fulfillment (`pending -> fulfilled`, the transition this ADR's original scope covered
+under "reservation" but Milestone 3 deferred implementing) reuses this decision unchanged: the
+same row-level locks in the same ascending-`product_id` order, inside the same
+READ-COMMITTED-plus-`FOR UPDATE` strategy, guarded by the same idempotency mechanism. No new
+architectural decision was needed — see
+[docs/architecture/order-lifecycle.md#fulfillment](../architecture/order-lifecycle.md#fulfillment)
+for the implementation, and
+[#fulfillment-vs-cancellation](../architecture/order-lifecycle.md#fulfillment-vs-cancellation)
+for why a concurrent fulfillment and cancellation of the same order can never both succeed
+under this same strategy.

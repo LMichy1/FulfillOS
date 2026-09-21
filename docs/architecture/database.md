@@ -2,11 +2,13 @@
 
 ## Status
 
-Schema, migrations, and seed script implemented as of Milestone 1. Application code now reads
-and writes these tables: authentication and organization membership (Milestone 2, see
-[authentication.md](authentication.md)), and the inventory/reservation engine (Milestone 3, see
-[inventory.md](inventory.md)) — order/catalog fulfillment workflows beyond reservation remain
-future work.
+Schema and seed script implemented as of Milestone 1; migrations remain additive-only as later
+milestones extend the schema (most recently Milestone 4's `orders.fulfilled_at` column and
+`inventory_movement_type`'s `'fulfillment'` enum value). Application code now reads and writes
+these tables: authentication and organization membership (Milestone 2, see
+[authentication.md](authentication.md)), the inventory/reservation engine (Milestone 3), and
+product catalog + order fulfillment/cancellation (Milestone 4) — see
+[inventory.md](inventory.md) and [order-lifecycle.md](order-lifecycle.md).
 
 ## Domain overview
 

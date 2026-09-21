@@ -6,20 +6,24 @@ Implemented and tested as of Milestone 3: stock adjustments, atomic multi-produc
 reservations, transactional idempotency, and reservation release/cancellation, all served
 through the tenant-scoped HTTP API below. This document describes what is actually built and
 verified — see [Known limitations](#known-limitations) for what is explicitly deferred.
+Milestone 4 adds order fulfillment (the `pending -> fulfilled` transition this document's
+Milestone 3 text explicitly deferred) plus product/order catalog APIs on top of this engine —
+see [docs/architecture/order-lifecycle.md](order-lifecycle.md), which this document's
+[Reservation lifecycle](#reservation-lifecycle) section now points to rather than restating.
 
 ## Data model
 
 No new tables were introduced this milestone. Every piece of the reservation engine reuses
 tables Milestone 1 already defined (see [database.md](database.md) for the full schema):
 
-| Table                 | Role in this milestone                                                               |
-| --------------------- | ------------------------------------------------------------------------------------ |
-| `inventory`           | The authoritative `on_hand`/`reserved` counters, one row per product.                |
-| `inventory_movements` | Append-only ledger: one row per stock change, written in the same transaction.       |
-| `orders`              | The reservation record itself — see [Reservation lifecycle](#reservation-lifecycle). |
-| `order_items`         | The reserved line items, with a price snapshot at reservation time.                  |
-| `idempotency_keys`    | Backs the idempotency mechanism — see [Idempotency](#idempotency).                   |
-| `audit_log`           | One entry per reservation creation and release.                                      |
+| Table                 | Role in this milestone                                                                                                                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inventory`           | The authoritative `on_hand`/`reserved` counters, one row per product.                                                                                                                                             |
+| `inventory_movements` | Append-only ledger: one row per stock change, written in the same transaction. `movement_type` gained a fourth value, `'fulfillment'`, in Milestone 4 (see [order-lifecycle.md](order-lifecycle.md#fulfillment)). |
+| `orders`              | The reservation record itself — see [Reservation lifecycle](#reservation-lifecycle).                                                                                                                              |
+| `order_items`         | The reserved line items, with a price snapshot at reservation time.                                                                                                                                               |
+| `idempotency_keys`    | Backs the idempotency mechanism — see [Idempotency](#idempotency).                                                                                                                                                |
+| `audit_log`           | One entry per reservation creation and release.                                                                                                                                                                   |
 
 PostgreSQL remains the sole source of truth for `on_hand` and `reserved`. Redis is not used to
 store, cache, or arbitrate any inventory quantity — nothing in this milestone reads or writes
@@ -175,13 +179,13 @@ parallel one:
   corresponding stock is held in `inventory.reserved`.
 - **`pending` → `cancelled` is release.** Covered below.
 - **`pending` → `fulfilled`** (consuming the reservation permanently — decrementing `on_hand`
-  as well as `reserved`) is explicitly **out of scope for this milestone** — no fulfillment
-  workflow exists yet, matching the schema comment's original intent
-  (`orders.schema.ts`: "inventory reservation is consumed, not released"). This milestone only
-  builds `pending` and `pending → cancelled`.
+  as well as `reserved`) was out of scope for Milestone 3, matching the schema comment's
+  original intent (`orders.schema.ts`: "inventory reservation is consumed, not released").
+  Implemented in Milestone 4 — see
+  [order-lifecycle.md#fulfillment](order-lifecycle.md#fulfillment).
 - `fulfilled` and `cancelled` are both terminal. Attempting to release an order in either state
-  is rejected with `409` (tested directly, including a simulated `fulfilled` order, since no
-  fulfillment endpoint exists yet to reach that state naturally).
+  is rejected with `409` (tested directly, both against a real fulfilled order as of Milestone
+  4 and, in this milestone's own tests, a simulated one).
 
 ### Cancellation (release)
 
@@ -279,14 +283,9 @@ transactions, with bounded Jest timeouts.
 
 ## Known limitations
 
-- **No fulfillment workflow.** `pending → fulfilled` (consuming a reservation permanently) is
-  not implemented — deferred to a future milestone, per the existing schema comment's original
-  intent.
 - **No idempotency-key expiry job.** `expires_at` is a column with a default; nothing actively
   cleans up expired rows yet (inherited from Milestone 1 — see
   [database.md](database.md#known-limitations)).
-- **No product-creation API.** This milestone assumes products already exist (via the seed
-  script or a future catalog API); it only adds inventory/reservation behavior over them.
 - **No multi-warehouse inventory.** One `inventory` row per product, matching ADR-002's stated
   MVP scope.
 - **The default connection pool (10 connections) bounds real concurrency in tests and in

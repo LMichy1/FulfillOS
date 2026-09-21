@@ -24,6 +24,9 @@ export const inventoryMovementTypeEnum = pgEnum('inventory_movement_type', [
   'on_hand_adjustment',
   'reservation',
   'release',
+  // Milestone 4: consumes a reservation permanently — decreases both on_hand and reserved
+  // (unlike 'release', which only decreases reserved). See docs/architecture/order-lifecycle.md.
+  'fulfillment',
 ]);
 
 export const inventoryMovements = pgTable(
