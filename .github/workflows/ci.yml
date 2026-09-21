@@ -30,6 +30,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -64,6 +73,12 @@ jobs:
         run: pnpm --filter @fulfillos/api test:integration
         env:
           DATABASE_URL_TEST: postgresql://fulfillos:fulfillos@localhost:5432/fulfillos_test
+
+      - name: Security tests (auth, sessions, CSRF, tenancy)
+        run: pnpm --filter @fulfillos/api test:security
+        env:
+          DATABASE_URL_TEST: postgresql://fulfillos:fulfillos@localhost:5432/fulfillos_test
+          REDIS_URL_TEST: redis://localhost:6379/1
 
       - name: Build
         run: pnpm build
