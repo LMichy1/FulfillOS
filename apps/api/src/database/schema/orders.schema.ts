@@ -11,17 +11,18 @@ import { sql } from 'drizzle-orm';
 import { organizations } from './organizations.schema';
 
 /**
- * Minimal order lifecycle for the MVP scope (creation + cancellation only — no shipping or
- * fulfillment workflow exists yet). This enum only constrains status to a known value; it
- * does NOT enforce which transitions are legal (e.g. it will not stop an update from moving
- * a `cancelled` order back to `pending` at the database level). Permitted transitions:
+ * Order lifecycle (creation, fulfillment, and cancellation — no shipping workflow beyond
+ * fulfillment exists). This enum only constrains status to a known value; it does NOT enforce
+ * which transitions are legal (e.g. it will not stop an update from moving a `cancelled` order
+ * back to `pending` at the database level). Permitted transitions:
  *
  *   pending -> fulfilled   (terminal; inventory reservation is consumed, not released)
  *   pending -> cancelled   (terminal; inventory reservation is released)
  *
  * `fulfilled` and `cancelled` are both terminal — no further transitions are permitted from
- * either. Enforcing this is the application layer's responsibility (Milestone 4); it is not
- * expressible as a stateless CHECK constraint here.
+ * either. Enforced by the application layer (Milestone 4, `ReservationsService`) via a single
+ * conditional `UPDATE ... WHERE status = 'pending'`, not a stateless CHECK constraint — see
+ * docs/architecture/order-lifecycle.md.
  */
 export const orderStatusEnum = pgEnum('order_status', [
   'pending',
@@ -53,6 +54,7 @@ export const orders = pgTable(
       .notNull()
       .defaultNow(),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    fulfilledAt: timestamp('fulfilled_at', { withTimezone: true }),
   },
   (table) => [
     // Composite-FK target: lets order_items prove it references a product AND an order
