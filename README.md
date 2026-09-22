@@ -4,12 +4,12 @@ A multi-tenant inventory and order management platform. Organizations manage the
 
 ## Status
 
-**Milestones 0–4 complete** (repository foundation; domain and database engineering;
+**Milestones 0–5 complete** (repository foundation; domain and database engineering;
 authentication, sessions, and multi-tenant authorization; the transactional inventory and
-reservation engine; the product catalog and order fulfillment workflow). This README describes
-what is actually implemented today, not the full target feature set. See
-[Known limitations](#known-limitations) below and the milestone plan in the project brief for
-what's next.
+reservation engine; the product catalog and order fulfillment workflow; a full enterprise
+dashboard frontend integrated with the real API). This README describes what is actually
+implemented today, not the full target feature set. See [Known limitations](#known-limitations)
+below and the milestone plan in the project brief for what's next.
 
 Implemented so far:
 
@@ -20,15 +20,26 @@ Implemented so far:
 - Database-backed session authentication (Argon2id password hashing, session-bound CSRF tokens, idle/absolute session expiration, Redis-backed rate limiting on auth endpoints), and organization membership/role authorization — see [docs/architecture/authentication.md](docs/architecture/authentication.md)
 - A concurrency-safe inventory and reservation engine (stock adjustments, atomic multi-product reservations with row-level locking in deterministic order, transactional request idempotency, and reservation release/cancellation) — see [docs/architecture/inventory.md](docs/architecture/inventory.md)
 - A tenant-scoped product catalog (creation with atomic inventory initialization, paginated listing and retrieval) and an order management API (paginated listing/retrieval, transactional fulfillment consuming a reservation, and order-centric cancellation reusing the existing release logic) — see [docs/architecture/order-lifecycle.md](docs/architecture/order-lifecycle.md)
+- A tenant-scoped, database-aggregated dashboard summary endpoint (total products, pending/fulfilled/cancelled order counts, low-stock product count)
 - OpenAPI/Swagger documentation of the running API at `/api/docs`
-- A real Next.js authentication vertical slice (registration, login, an authenticated dashboard with an organization switcher and an owner-only rename form, logout) calling the real API — no mocked auth
-- PostgreSQL integration tests (schema constraints/tenant isolation, and concurrency/idempotency/rollback tests against real concurrent connections, including the catalog/fulfillment/cancellation engine) and a separate HTTP-level security test suite (credentials, sessions, CSRF, tenancy, rate limiting, and the inventory/reservation/catalog/order endpoints, plus a full end-to-end business-workflow test) against a real database and real Redis, plus a Playwright browser test of the auth flow
-- Shared TypeScript/lint/format config, CI pipeline (install, format check, lint, typecheck, unit tests, PostgreSQL integration tests, security tests, build)
+- A complete Next.js enterprise dashboard (registration, login, logout, organization switching, an operational overview, product creation and browsing, inventory viewing and adjustment, multi-line order creation/reservation, order fulfillment and cancellation) calling the real API throughout — no mocked business data, no fabricated analytics — see [docs/architecture/frontend.md](docs/architecture/frontend.md)
+- PostgreSQL integration tests (schema constraints/tenant isolation, and concurrency/idempotency/rollback tests against real concurrent connections, including the catalog/fulfillment/cancellation engine and the dashboard aggregate endpoint) and a separate HTTP-level security test suite (credentials, sessions, CSRF, tenancy, rate limiting, and the inventory/reservation/catalog/order/dashboard endpoints, plus a full end-to-end business-workflow test) against a real database and real Redis
+- Frontend component tests (Vitest + React Testing Library) for form validation, the idempotency-key hook, pagination, confirmation dialogs, and the organization switcher, and a Playwright browser suite covering registration/auth, the full product→reservation→fulfillment workflow, cancellation, role-based permission enforcement, tenant data isolation across organization switches, and failure handling (insufficient stock, invalid input, duplicate submission, expired sessions) — see [docs/architecture/frontend.md#testing](docs/architecture/frontend.md#testing)
+- Shared TypeScript/lint/format config, CI pipeline (install, format check, lint, typecheck, unit tests, PostgreSQL integration tests, security tests, frontend component tests, production builds, Playwright browser tests)
 
 Not yet implemented: order fulfillment beyond the single `pending → fulfilled` transition (no
 payments, shipping, or partial fulfillment), product update/archive endpoints, organization
 invitations, account recovery. See the [architecture overview](docs/architecture/overview.md)
 for the target design.
+
+## Screenshots
+
+Captured from the running application against real data (see
+[docs/architecture/frontend.md](docs/architecture/frontend.md) for what each page does):
+
+| Overview                                             | Products                                        | Order detail                                       |
+| ---------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------- |
+| ![Dashboard overview](docs/screenshots/overview.png) | ![Products list](docs/screenshots/products.png) | ![Order detail](docs/screenshots/order-detail.png) |
 
 ## Technology stack
 
@@ -51,7 +62,7 @@ for the target design.
 
 ## Architecture
 
-See [docs/architecture/overview.md](docs/architecture/overview.md) for the system diagram and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, [docs/architecture/authentication.md](docs/architecture/authentication.md) for the auth/session/CSRF/authorization design and threat model, [docs/architecture/inventory.md](docs/architecture/inventory.md) for the inventory/reservation engine (transaction boundaries, lock order, idempotency, reservation lifecycle), [docs/architecture/order-lifecycle.md](docs/architecture/order-lifecycle.md) for the product catalog and order fulfillment/cancellation workflow, and [docs/adr/](docs/adr/) for the architecture decision records:
+See [docs/architecture/overview.md](docs/architecture/overview.md) for the system diagram and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, [docs/architecture/authentication.md](docs/architecture/authentication.md) for the auth/session/CSRF/authorization design and threat model, [docs/architecture/inventory.md](docs/architecture/inventory.md) for the inventory/reservation engine (transaction boundaries, lock order, idempotency, reservation lifecycle), [docs/architecture/order-lifecycle.md](docs/architecture/order-lifecycle.md) for the product catalog and order fulfillment/cancellation workflow, [docs/architecture/frontend.md](docs/architecture/frontend.md) for the Next.js dashboard (Server/Client boundaries, the API client, auth/CSRF integration, tenant-data isolation across organization switches, state management, testing, and accessibility), and [docs/adr/](docs/adr/) for the architecture decision records:
 
 - [ADR-001: Modular Monolith Architecture](docs/adr/0001-modular-monolith.md)
 - [ADR-002: PostgreSQL Inventory Consistency](docs/adr/0002-postgres-inventory-consistency.md)
@@ -93,6 +104,22 @@ pnpm dev:web
 # 8. Visit http://localhost:3000/register to create an account and organization
 ```
 
+### Demonstration walkthrough
+
+Once both dev servers are running, a full path through the dashboard:
+
+1. Register at `/register` (creates a user, an organization, and an owner membership) — you're
+   redirected to `/dashboard/overview`.
+2. Create a product at `/dashboard/products/new`, including an initial on-hand quantity.
+3. Check `/dashboard/inventory` — the new product's on-hand/reserved/available figures, and
+   (owner only) an "Adjust" control.
+4. Create an order at `/dashboard/orders/new`: add the product as a line, submit, and land on
+   the new order's detail page with status `Pending`.
+5. Revisit `/dashboard/inventory` — the reserved and available figures reflect the reservation.
+6. From the order's detail page, fulfill or cancel it; inventory updates again accordingly.
+7. From the header, use the organization switcher (once you belong to more than one
+   organization) or the user menu to rename the organization or log out.
+
 ## Environment variables
 
 See [.env.example](.env.example) for the full list with defaults. Never commit a real `.env` file.
@@ -129,13 +156,21 @@ pnpm format:check # formatting check
 pnpm --filter @fulfillos/api test:integration
 
 # HTTP-level security tests: credentials, sessions, CSRF, tenancy, rate limiting, the
-# inventory/reservation/catalog/order endpoints (cross-tenant access, role enforcement, CSRF,
-# the required Idempotency-Key header), and a full end-to-end business-workflow test
-# (requires DATABASE_URL_TEST and REDIS_URL_TEST — see .env.example)
+# inventory/reservation/catalog/order/dashboard endpoints (cross-tenant access, role
+# enforcement, CSRF, the required Idempotency-Key header), and a full end-to-end
+# business-workflow test (requires DATABASE_URL_TEST and REDIS_URL_TEST — see .env.example)
 pnpm --filter @fulfillos/api test:security
 
-# Playwright browser test of the auth vertical slice — requires both dev servers already
-# running (docker compose up -d, then pnpm dev:api and pnpm dev:web in separate terminals)
+# Frontend component tests (Vitest + React Testing Library) — form validation, idempotency-key
+# stability, pagination, confirmation dialogs, the organization switcher
+pnpm --filter @fulfillos/web test
+
+# Playwright browser tests — auth, the full product/reservation/fulfillment workflow,
+# cancellation, permission enforcement, tenant isolation across organization switches, and
+# failure handling. Launches its own API + web server instances against an isolated test
+# database (docker compose up -d must already be running; see
+# docs/architecture/frontend.md#testing) — it does not require pnpm dev:api/dev:web to be
+# running first.
 pnpm --filter @fulfillos/web test:e2e
 ```
 
@@ -156,7 +191,9 @@ catalog/order endpoints, each including example requests.
 - No organization invitation flow, account recovery, or email verification — see [Known limitations in authentication.md](docs/architecture/authentication.md#known-limitations) for the full list and reasoning.
 - No Content-Security-Policy or systematic output-encoding audit on the frontend.
 - `audit_log`'s append-only nature is an application convention, not yet a database-enforced guarantee (no restricted database role exists yet).
-- CI does not run the Playwright browser test — it requires both dev servers already running, which CI doesn't orchestrate yet. Run it locally with `pnpm --filter @fulfillos/web test:e2e` (see [Tests](#tests)).
+- No automated accessibility (axe) scanning is wired into Playwright yet; see [Accessibility in frontend.md](docs/architecture/frontend.md#accessibility) for exactly what was manually verified instead.
+- The order-creation product picker fetches up to 100 products once rather than a searchable, paginated combobox — see [Known limitations in frontend.md](docs/architecture/frontend.md#known-limitations).
+- No product edit/archive/delete UI, matching the backend, which doesn't expose those endpoints yet.
 
 ## Future improvements
 
