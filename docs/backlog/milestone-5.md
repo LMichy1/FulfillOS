@@ -34,7 +34,12 @@ header) and the shared primitives feature pages will reuse.
 **Tests**: component tests for the shared primitives that carry real behavior (data table
 pagination controls, confirm dialog, status badge variants).
 
-**Completion status**: not started
+**Completion status**: done. shadcn/ui (Base UI) installed and configured; design tokens in
+`app/globals.css`; dashboard shell (`app/dashboard/layout.tsx`, `DesktopSidebar`,
+`DashboardHeader`) and shared primitives (`PageHeader`, `EmptyState`, `ErrorState`,
+`ConfirmDialog`, `PaginationControls`, status badges) built and reused by every feature page
+below. Component tests for `PaginationControls` and `ConfirmDialog` pass (see
+[docs/architecture/frontend.md#testing](../architecture/frontend.md#testing)).
 
 ---
 
@@ -70,7 +75,12 @@ fulfillment/cancellation, inventory adjustment).
 **Tests**: unit tests for the API client's error normalization, the idempotency-key helper's
 key stability across retries, and the organization-switch request-cancellation behavior.
 
-**Completion status**: not started
+**Completion status**: done. `lib/api.ts` extended with typed methods for products, inventory,
+orders, reservations, and fulfillment/cancellation; `OrganizationProvider` added
+(`lib/organization-context.tsx`); `useIdempotencyKey()` added (`lib/idempotency.ts`). Component
+test for the idempotency hook's key stability passes; organization-switch cancellation is
+exercised end-to-end in Playwright's tenant-isolation flow rather than unit-mocked (see
+[docs/architecture/frontend.md#organization-switching](../architecture/frontend.md#organization-switching)).
 
 ---
 
@@ -102,7 +112,10 @@ counts, and low-stock product count (defined explicitly — see the endpoint's d
 **Tests**: an integration test for the new aggregate endpoint (real Postgres, asserting counts
 against known fixture data) and a component test for the three UI states.
 
-**Completion status**: not started
+**Completion status**: done. `GET /organizations/:organizationId/dashboard/summary`
+(`apps/api/src/dashboard`) added, with `LOW_STOCK_THRESHOLD = 5` defined once and documented;
+`/dashboard/overview` renders the five counts with loading/empty/error states. 3 integration
+tests and 3 security tests for the endpoint pass (see the Milestone 5 checkpoint report).
 
 ---
 
@@ -131,7 +144,11 @@ without calling the API directly.
 **Tests**: component tests for the creation form's validation and error states; a Playwright
 flow covering creation end to end.
 
-**Completion status**: not started
+**Completion status**: done. `/dashboard/products`, `/dashboard/products/new`,
+`/dashboard/products/[productId]` implemented against the real catalog API; creation initializes
+inventory atomically via the existing endpoint; no edit/delete control exists, matching the
+backend. 5 component tests for the creation form pass; Playwright's Flow A/E specs exercise
+creation (including a duplicate-SKU conflict and invalid input) end to end.
 
 ---
 
@@ -163,7 +180,12 @@ There is no UI for viewing or adjusting inventory (Milestone 3's `InventoryContr
 simulated retry, confirmation gate on decreases); a Playwright flow verifying a staff account
 still gets a real 403 if it somehow submits the request.
 
-**Completion status**: not started
+**Completion status**: done. `/dashboard/inventory` and `AdjustInventoryDialog` implemented;
+`reserved` is display-only; a confirmation step gates decreases only; the page reloads
+authoritative inventory after a successful adjustment; the control is hidden for `staff`.
+5 component tests pass, including idempotency-key reuse across a simulated failed retry;
+Playwright's permissions flow confirms a `staff` account never sees the control (and Flow A/B
+confirm the backend-driven inventory numbers directly).
 
 ---
 
@@ -196,7 +218,12 @@ and submit it as a reservation without calling the API directly.
 retention behavior; a Playwright flow covering successful creation and an insufficient-stock
 rejection.
 
-**Completion status**: not started
+**Completion status**: done. `/dashboard/orders/new` implemented: add/remove lines, a picker
+that already excludes products with a line on the order (duplicate rejection is structural, not
+just a validated error path), one stable idempotency key per page mount, and navigation to the
+new order's detail page only after the API confirms creation. Playwright's Flow A covers
+successful creation; Flow E covers insufficient stock and a rapid double-submission producing
+exactly one order.
 
 ---
 
@@ -230,7 +257,16 @@ fulfill/cancel actions). Reuses the existing fulfill/cancel endpoints with idemp
 dialogs; Playwright flows for fulfillment and cancellation, including the conflict case
 (fulfilling an order concurrently cancelled by another simulated actor).
 
-**Completion status**: not started
+**Completion status**: mostly done. `/dashboard/orders` and `/dashboard/orders/[orderId]`
+implemented; fulfill/cancel controls appear only for `pending` orders; both transitions require
+a `ConfirmDialog`; a successful transition reloads the order via `load()`
+(`app/dashboard/orders/[orderId]/order-detail-view.tsx`); a 409 (order already moved to a
+different terminal state) shows a distinct "This order changed" banner and still reloads
+authoritative data. Playwright's Flow A (fulfillment) and Flow B (cancellation) pass end to end.
+**Gap**: no Playwright test specifically drives the concurrent-conflict case (two actors racing
+to fulfill/cancel the same order) — the 409-handling code path exists and is exercised by the
+backend's own integration test (`order-cancellation-race.integration-spec.ts`), but not from the
+browser. Not implemented due to time; a real gap, not a silent assumption.
 
 ---
 
@@ -260,7 +296,15 @@ layouts at desktop/tablet/mobile widths.
 **Tests**: automated accessibility checks (axe) integrated into the Playwright suite for the
 primary authenticated pages, where practical.
 
-**Completion status**: not started
+**Completion status**: partially done. Every form input is labeled, every error uses
+`role="alert"`, dialogs trap focus and close on Escape (Base UI primitives), tables use real
+`<table>` semantics, and the sidebar collapses to an accessible off-canvas `Sheet` below `lg`.
+Manually keyboard-tested for the primary workflows (register, log in, switch organization,
+create a product, adjust inventory, create an order, fulfill/cancel an order) — see
+[docs/architecture/frontend.md#accessibility](../architecture/frontend.md#accessibility) for
+the exact list. **Not done**: no automated axe scan is wired into Playwright (judged
+out of scope given the time available — documented honestly, not silently assumed passing); no
+screen-reader software was used; no dedicated contrast-ratio measurement tool was used.
 
 ---
 
@@ -293,7 +337,20 @@ servers, and run Playwright with failure artifacts.
 [docs/architecture/frontend.md](../architecture/frontend.md) for the full list actually
 executed and their results.
 
-**Completion status**: not started
+**Completion status**: done. `apps/web/e2e/` expanded to 6 spec files (`auth.spec.ts` plus
+Flows A-E: `product-fulfillment.spec.ts`, `cancellation.spec.ts`, `permissions.spec.ts`,
+`tenant-isolation.spec.ts`, `failure-handling.spec.ts`), 14 tests total, all passing against a
+real Chromium browser, a real running API+web instance (Playwright's own `webServer`), and the
+same isolated `fulfillos_test` database/role the Jest suites use — see
+[docs/architecture/frontend.md#testing](../architecture/frontend.md#testing) for the full list.
+`.github/workflows/ci.yml` updated to install Chromium, provision the database, run the suite,
+and upload the report on failure — reviewed for correctness only; no claim is made that it has
+actually executed on GitHub's infrastructure. Two real infrastructure fixes were needed and
+applied along the way (both documented in code comments where they live): the register/login
+rate limiter is isolated to its own Redis logical database and flushed before every test (a
+single run legitimately exceeds the 5-per-15-minute register limit otherwise), and every route
+is pre-warmed once in `global-setup.ts` before any test runs, since this machine's Turbopack dev
+compiles are otherwise slow enough to make a test's first navigation to a new route flaky.
 
 ---
 
@@ -321,4 +378,12 @@ commands, architecture diagram, real screenshots from the running app).
 
 **Tests**: none beyond re-running the full suite as a final gate.
 
-**Completion status**: not started
+**Completion status**: done. `docs/architecture/frontend.md` written covering architecture,
+Server/Client boundaries, the API client, auth/CSRF integration, organization-switch data
+isolation, state management, error handling, testing, and accessibility (with an honest
+known-limitations section). README updated: features, a screenshots section with three real
+images captured from the running app, updated tech-stack/testing-command sections, and a
+demonstration walkthrough. Final quality gates run for real: format check, lint, typecheck,
+backend unit (3) + integration (94) + security (55) + e2e (2) = 154 tests, frontend component
+tests (22), Playwright (14), and both production builds — see the Milestone 5 checkpoint report
+for the exact commands and results.
