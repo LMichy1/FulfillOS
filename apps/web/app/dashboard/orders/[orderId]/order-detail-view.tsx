@@ -236,23 +236,33 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
         </CardContent>
       </Card>
 
-      <ConfirmDialog
-        open={fulfillOpen}
-        onOpenChange={setFulfillOpen}
-        title="Fulfill this order?"
-        description="This consumes the reserved stock permanently and cannot be undone."
-        confirmLabel="Fulfill order"
-        onConfirm={handleFulfill}
-      />
-      <ConfirmDialog
-        open={cancelOpen}
-        onOpenChange={setCancelOpen}
-        title="Cancel this order?"
-        description="This releases the reserved stock back to available inventory and cannot be undone."
-        confirmLabel="Cancel order"
-        destructive
-        onConfirm={handleCancel}
-      />
+      {/* Rendered only while the order is actually pending — not just gated by fulfillOpen/
+          cancelOpen. A rejected transition (e.g. a 409 because another client already moved
+          this order) triggers `load()`, which re-fetches and can bring back a now-terminal
+          order while the dialog's own open state is still true; without this guard the dialog
+          would reopen offering an action that can only fail again on a resource that no
+          longer supports it. */}
+      {order.status === 'pending' && (
+        <>
+          <ConfirmDialog
+            open={fulfillOpen}
+            onOpenChange={setFulfillOpen}
+            title="Fulfill this order?"
+            description="This consumes the reserved stock permanently and cannot be undone."
+            confirmLabel="Fulfill order"
+            onConfirm={handleFulfill}
+          />
+          <ConfirmDialog
+            open={cancelOpen}
+            onOpenChange={setCancelOpen}
+            title="Cancel this order?"
+            description="This releases the reserved stock back to available inventory and cannot be undone."
+            confirmLabel="Cancel order"
+            destructive
+            onConfirm={handleCancel}
+          />
+        </>
+      )}
     </div>
   );
 }

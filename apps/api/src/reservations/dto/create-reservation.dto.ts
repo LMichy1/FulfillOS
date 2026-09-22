@@ -4,6 +4,7 @@ import {
   IsArray,
   IsInt,
   IsOptional,
+  IsString,
   IsUUID,
   Length,
   Max,
@@ -37,6 +38,7 @@ export class CreateReservationDto {
   items!: ReservationItemDto[];
 
   @IsOptional()
+  @IsString()
   @Length(3, 3)
   currency?: string;
 }
