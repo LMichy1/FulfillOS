@@ -1,4 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { flushRateLimitRedisDb } from './redis';
+
+// Resets rate-limit counters before every test so one test's register/login attempts don't
+// exhaust another's quota within the same run — see e2e/redis.ts.
+test.beforeEach(async () => {
+  await flushRateLimitRedisDb();
+});
 
 /**
  * Exercises the real NestJS API through the real browser UI — no mocked fetch, no fabricated
@@ -25,14 +32,15 @@ test('registration, protected navigation, logout, and login all work end-to-end'
   await page.getByLabel('Password').fill(PASSWORD);
   await page.getByRole('button', { name: /create account/i }).click();
 
-  // Successful registration + auto-login redirects to the authenticated dashboard.
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-  await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
+  // Successful registration + auto-login redirects to the authenticated dashboard overview.
+  await expect(page).toHaveURL(/\/dashboard\/overview$/);
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   await expect(page.getByText('Playwright Org')).toBeVisible();
+  await expect(page.getByText('Playwright User')).toBeVisible();
 
-  // Log out.
-  await page.getByRole('button', { name: /log out/i }).click();
+  // Log out (behind the user menu).
+  await page.getByRole('button', { name: 'Playwright User' }).click();
+  await page.getByRole('menuitem', { name: /log out/i }).click();
   await expect(page).toHaveURL(/\/login$/);
 
   // The dashboard is not actually protected by the frontend alone: without a session, the
@@ -45,8 +53,8 @@ test('registration, protected navigation, logout, and login all work end-to-end'
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
   await page.getByRole('button', { name: /^log in$/i }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard\/overview$/);
+  await expect(page.getByText('Playwright User')).toBeVisible();
 });
 
 test('shows a generic error for invalid login credentials', async ({ page }) => {
@@ -71,11 +79,14 @@ test('an owner can rename their organization', async ({ page }) => {
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
   await page.getByRole('button', { name: /create account/i }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/dashboard\/overview$/);
+
+  await page.goto('/dashboard/settings');
+  await expect(page.getByLabel('Organization name')).toHaveValue('Original Name');
 
   await page.getByLabel('Organization name').fill('Renamed via Playwright');
   await page.getByRole('button', { name: /^save$/i }).click();
 
   await expect(page.getByText('Saved.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Renamed via Playwright' })).toBeVisible();
+  await expect(page.getByLabel('Organization name')).toHaveValue('Renamed via Playwright');
 });
