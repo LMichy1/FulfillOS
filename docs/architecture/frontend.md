@@ -288,15 +288,32 @@ Specs, one file per flow from the milestone brief:
   product-creation input, a duplicate-SKU conflict, an already-expired session redirecting to
   login instead of silently failing, and a rapid double-click on order submission producing
   exactly one order.
+- `order-conflict.spec.ts` (Milestone 6) — two tabs sharing one authenticated session both load
+  the same pending order; one tab fulfills it and genuinely succeeds; the other tab, still
+  showing its stale "pending" view, then attempts to cancel the same order and receives a real
+  409 from the backend. Proves: exactly one transition wins, the loser gets a real conflict
+  message (never a false success), the loser's UI refreshes to the authoritative `Fulfilled`
+  state with both transition controls gone, and inventory reflects only the winning transition.
+  This is deliberately **not** an attempt at a byte-for-byte simultaneous race — reliably forcing
+  two real browser requests into the same sub-millisecond Postgres lock window isn't achievable
+  without either an arbitrary sleep or a test-only synchronization hook in production code. That
+  guarantee — two truly concurrent `fulfillOrder`/`releaseReservation` calls against real
+  Postgres resolving to exactly one winner via row-level locking — is what
+  `apps/api/test/integration/order-cancellation-race.integration-spec.ts` already proves, with a
+  literal `Promise.allSettled` race against a real database. The two tests are complementary,
+  not duplicates: one proves the database-level concurrency guarantee under genuine simultaneity,
+  the other proves the frontend's conflict-handling code path behaves correctly when a client's
+  view goes stale — which is the shape every real "two tabs" or "two staff members" scenario
+  actually takes.
 
 Flows D and part of C use a direct-database helper (`e2e/db.ts`) to add a second organization
 membership and to force-expire a session — both stand in for an invitation flow and a real idle
 timeout that this milestone doesn't implement/doesn't want to wait out in a test; see
 [Known limitations](#known-limitations).
 
-**Results**: see the Milestone 5 checkpoint report (delivered alongside this document) for the
-actual pass/fail counts from the run executed for this milestone, since this document is meant
-to stay accurate rather than being re-edited with every future test run.
+**Results**: see the Milestone 6 checkpoint report for the actual pass/fail counts from the run
+executed for that milestone, since this document is meant to stay accurate rather than being
+re-edited with every future test run.
 
 ## Error handling
 

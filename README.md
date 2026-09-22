@@ -4,12 +4,13 @@ A multi-tenant inventory and order management platform. Organizations manage the
 
 ## Status
 
-**Milestones 0–5 complete** (repository foundation; domain and database engineering;
-authentication, sessions, and multi-tenant authorization; the transactional inventory and
-reservation engine; the product catalog and order fulfillment workflow; a full enterprise
-dashboard frontend integrated with the real API). This README describes what is actually
-implemented today, not the full target feature set. See [Known limitations](#known-limitations)
-below and the milestone plan in the project brief for what's next.
+**Milestones 0–6 complete — release candidate v1.0.0** (repository foundation; domain and
+database engineering; authentication, sessions, and multi-tenant authorization; the
+transactional inventory and reservation engine; the product catalog and order fulfillment
+workflow; a full enterprise dashboard frontend integrated with the real API; final engineering
+and release-readiness verification). This README describes what is actually implemented and
+verified today, not the full target feature set. See [Known limitations](#known-limitations) and
+[CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 Implemented so far:
 
@@ -26,6 +27,8 @@ Implemented so far:
 - PostgreSQL integration tests (schema constraints/tenant isolation, and concurrency/idempotency/rollback tests against real concurrent connections, including the catalog/fulfillment/cancellation engine and the dashboard aggregate endpoint) and a separate HTTP-level security test suite (credentials, sessions, CSRF, tenancy, rate limiting, and the inventory/reservation/catalog/order/dashboard endpoints, plus a full end-to-end business-workflow test) against a real database and real Redis
 - Frontend component tests (Vitest + React Testing Library) for form validation, the idempotency-key hook, pagination, confirmation dialogs, and the organization switcher, and a Playwright browser suite covering registration/auth, the full product→reservation→fulfillment workflow, cancellation, role-based permission enforcement, tenant data isolation across organization switches, and failure handling (insufficient stock, invalid input, duplicate submission, expired sessions) — see [docs/architecture/frontend.md#testing](docs/architecture/frontend.md#testing)
 - Shared TypeScript/lint/format config, CI pipeline (install, format check, lint, typecheck, unit tests, PostgreSQL integration tests, security tests, frontend component tests, production builds, Playwright browser tests)
+- A Playwright test covering the browser-level conflict-response behavior when two clients attempt conflicting order transitions (Milestone 6) — see [docs/architecture/frontend.md#testing](docs/architecture/frontend.md#testing) for exactly what it and the existing real-Postgres concurrency test each prove
+- A Milestone 6 engineering/security release audit (password hashing, session lifecycle, CSRF, rate limiting, tenant isolation, CORS, input validation, dependency vulnerabilities) with findings and fixes documented in [docs/backlog/milestone-6.md](docs/backlog/milestone-6.md) and summarized in [Security considerations](#security-considerations) below
 
 Not yet implemented: order fulfillment beyond the single `pending → fulfilled` transition (no
 payments, shipping, or partial fulfillment), product update/archive endpoints, organization
@@ -62,7 +65,17 @@ Captured from the running application against real data (see
 
 ## Architecture
 
-See [docs/architecture/overview.md](docs/architecture/overview.md) for the system diagram and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, [docs/architecture/authentication.md](docs/architecture/authentication.md) for the auth/session/CSRF/authorization design and threat model, [docs/architecture/inventory.md](docs/architecture/inventory.md) for the inventory/reservation engine (transaction boundaries, lock order, idempotency, reservation lifecycle), [docs/architecture/order-lifecycle.md](docs/architecture/order-lifecycle.md) for the product catalog and order fulfillment/cancellation workflow, [docs/architecture/frontend.md](docs/architecture/frontend.md) for the Next.js dashboard (Server/Client boundaries, the API client, auth/CSRF integration, tenant-data isolation across organization switches, state management, testing, and accessibility), and [docs/adr/](docs/adr/) for the architecture decision records:
+```mermaid
+flowchart LR
+    User[Browser] -->|HTTPS| Web[apps/web<br/>Next.js App Router]
+    Web -->|REST, cookies| Api[apps/api<br/>NestJS]
+    Api -->|SQL, transactions| Postgres[(PostgreSQL)]
+    Api -->|rate limiting| Redis[(Redis)]
+```
+
+Two Node processes (a Next.js server and a NestJS API), PostgreSQL, and Redis — a modular
+monolith, not a microservices architecture (see [ADR-001](docs/adr/0001-modular-monolith.md)).
+See [docs/architecture/overview.md](docs/architecture/overview.md) for the full system diagram, module boundaries, and domain boundaries, [docs/architecture/database.md](docs/architecture/database.md) for the schema/ER diagram/tenant-isolation strategy, [docs/architecture/authentication.md](docs/architecture/authentication.md) for the auth/session/CSRF/authorization design and threat model, [docs/architecture/inventory.md](docs/architecture/inventory.md) for the inventory/reservation engine (transaction boundaries, lock order, idempotency, reservation lifecycle), [docs/architecture/order-lifecycle.md](docs/architecture/order-lifecycle.md) for the product catalog and order fulfillment/cancellation workflow, [docs/architecture/frontend.md](docs/architecture/frontend.md) for the Next.js dashboard (Server/Client boundaries, the API client, auth/CSRF integration, tenant-data isolation across organization switches, state management, testing, and accessibility), and [docs/adr/](docs/adr/) for the architecture decision records:
 
 - [ADR-001: Modular Monolith Architecture](docs/adr/0001-modular-monolith.md)
 - [ADR-002: PostgreSQL Inventory Consistency](docs/adr/0002-postgres-inventory-consistency.md)
@@ -183,6 +196,85 @@ the auth/organizations endpoints, [docs/architecture/inventory.md](docs/architec
 for the inventory/reservation endpoints, and
 [docs/architecture/order-lifecycle.md](docs/architecture/order-lifecycle.md#api) for the
 catalog/order endpoints, each including example requests.
+
+## Deployment
+
+FulfillOS has not been deployed anywhere by this project — no hosting access, credentials, or
+target environment were provided or authorized, so deployment is **blocked by access**, not by
+readiness. Both applications build and start correctly in production mode locally (verified as
+part of Milestone 6 — see [docs/backlog/milestone-6.md](docs/backlog/milestone-6.md)). This
+section documents how to deploy it, for whoever has that access.
+
+**Architecture**: the simplest deployment compatible with this codebase is two long-running Node
+processes (the NestJS API, the Next.js server) plus a managed or self-hosted PostgreSQL and
+Redis instance — no Kubernetes, no microservices, no additional infrastructure. Any platform
+that runs a long-lived Node process works (a VM, a container host, a PaaS like Fly.io/Render).
+
+**Build and start**:
+
+```bash
+# API
+pnpm --filter @fulfillos/api build
+NODE_ENV=production node apps/api/dist/src/main
+
+# Web
+pnpm --filter @fulfillos/web build
+pnpm --filter @fulfillos/web start
+```
+
+**Required production configuration**:
+
+- `NODE_ENV=production` — this is what enables `Secure`/`__Host-` cookie prefixes (see
+  [docs/architecture/authentication.md](docs/architecture/authentication.md#cookie-configuration))
+  and blocks the development seed script (`apps/api/scripts/seed.ts`) from running. Startup
+  itself fails fast if `NODE_ENV` is anything other than `development`, `test`, or `production`
+  (a strict schema check — see `apps/api/src/config/env.validation.ts`), so a typo can't silently
+  leave production running with development cookie settings.
+- `DATABASE_URL` / `REDIS_URL` pointing at real, production PostgreSQL/Redis instances —
+  never the same database `DATABASE_URL_TEST` or a CI service container use.
+- `WEB_ORIGIN` set to the exact production frontend origin — this is the only origin `CORS` will
+  accept, and it feeds the `Secure`/`SameSite` cookie logic too.
+- `NEXT_PUBLIC_API_URL` (build-time, for `apps/web`) set to the exact production API origin.
+- HTTPS terminated in front of both applications. If a reverse proxy sits in front of the API,
+  read the `trust proxy` note in
+  [docs/architecture/authentication.md#rate-limiting-and-failure-handling](docs/architecture/authentication.md#rate-limiting-and-failure-handling)
+  before enabling Express's `trust proxy` setting — done carelessly, it can make the per-IP rate
+  limiter (and cookie `Secure` detection, if ever made proxy-aware) spoofable.
+- Never seed or reuse development credentials in production; generate real database/Redis
+  credentials for the target environment.
+
+Since deployment is blocked by access, no smoke tests against a live deployment were run and no
+public URL is claimed anywhere in this repository.
+
+## Security considerations
+
+See [docs/architecture/authentication.md](docs/architecture/authentication.md#threat-model) for
+the full threat model. Summary of what's implemented: Argon2id password hashing, database-backed
+sessions with idle/absolute expiration and real revocation, a session-bound CSRF synchronizer
+token (not naive double-submit), Redis-backed per-IP rate limiting on auth endpoints, tenant
+isolation enforced both at the database level (composite foreign keys) and the application level
+(membership/role guards re-checked on every request), a global `ValidationPipe`
+(`whitelist`/`forbidNonWhitelisted`/`transform`) rejecting unexpected fields, and an explicit
+single-origin CORS policy.
+
+A Milestone 6 release security audit (see
+[docs/backlog/milestone-6.md](docs/backlog/milestone-6.md)) re-verified all of the above against
+the actual running code (not just the docs), reviewed every mutating route for CSRF/tenant-scope
+coverage, checked for hardcoded credentials/debug endpoints/sensitive logging (found none), and
+ran a full dependency vulnerability audit. Two items worth knowing before a production deployment:
+
+- **No Content-Security-Policy or systematic output-encoding audit** — a pre-existing, documented
+  limitation, not new.
+- **`@nestjs/core`'s CVE-2026-35515** (SSE response-splitting) is present in the installed
+  version but confirmed unreachable — FulfillOS has no `@Sse()` endpoint at all. The only fix is
+  a major-version upgrade to NestJS 11 (the 10.x line has no patched release); deferred as an
+  accepted, tracked risk rather than an unnecessary major dependency upgrade under a hard
+  deadline. Re-evaluate if a Nest 11 migration ever becomes independently justified.
+- If deploying behind a reverse proxy, read the `trust proxy` note in
+  [Deployment](#deployment) above first.
+
+This project has not been independently security-certified; the above describes what was
+actually implemented and verified, not a certification of production-readiness.
 
 ## Known limitations
 
